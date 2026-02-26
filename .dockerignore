@@ -1,10 +1,14 @@
 node_modules
+.prisma
 frontend/node_modules
 frontend/dist
 dist
 .git
 .env
+.env.*
 *.log
 .DS_Store
 .vscode
 .windsurf
+prisma/dev.db*
+data/

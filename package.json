@@ -5,9 +5,10 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "prisma generate && tsc",
+    "prisma:generate": "prisma generate",
+    "build": "npm run prisma:generate && tsc --outDir dist",
     "postinstall": "prisma generate || true",
-    "start": "node dist/index.js",
+    "start": "node dist/dashboard-main.js",
     "dev": "tsx watch src/index.ts",
     "dev:dashboard": "tsx watch src/dashboard-main.ts",
     "dev:all": "tsx watch src/index-with-dashboard.ts",
@@ -15,10 +16,7 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-  "build": "npm run prisma:generate && tsc --outDir dist",
-  "start": "node dist/index.js"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "crypto",

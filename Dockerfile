@@ -6,17 +6,18 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Install ALL deps (including devDeps for tsc + prisma)
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci
 
-COPY tsconfig.json prisma.config.ts ./
+# Copy prisma schema + config, then generate client
 COPY prisma ./prisma
-COPY src ./src
-
-# Generate Prisma client
+COPY prisma.config.ts ./
 RUN npx prisma generate
 
-# TypeScript compile
+# Copy source and compile
+COPY tsconfig.json ./
+COPY src ./src
 RUN npx tsc --outDir dist
 
 # ── Stage 2: Production ──
@@ -26,15 +27,16 @@ WORKDIR /app
 # Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Production dependencies only
+# Production deps only
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy Prisma schema + generated client + migrations
+# Copy generated Prisma client from builder (lives in src/generated/prisma)
+COPY --from=builder /app/src/generated ./src/generated
+
+# Copy Prisma schema + config (needed at runtime for migrations)
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-COPY --from=builder /app/src/generated ./src/generated
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy compiled JS
 COPY --from=builder /app/dist ./dist
