@@ -314,7 +314,7 @@ async function main(): Promise<void> {
           }
         },
         exchangeSymbolList,
-        100 // 100ms delay between subscriptions
+        { batchDelayMs: 100 } // 100ms delay between subscriptions
       );
 
       // Also subscribe to triangular pairs for this exchange

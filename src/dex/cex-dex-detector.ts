@@ -9,21 +9,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../utils/logger.js';
 import { getDashboardStore } from '../dashboard/index.js';
 import {
-  fetch1inchQuote,
   fetchAllPools,
   getGasPrice,
-  getTokenAddress,
   updateGasTokenPrices,
   type SimpleDexPool,
-  type SimpleDexQuote,
 } from './price-fetcher.js';
 import {
-  CHAIN_CONFIGS,
   DEX_SCANNER_DEFAULTS,
-  getActiveDexesForChain,
   getActiveChains,
 } from './config.js';
-import type { ChainId, DexProtocol, CexDexOpportunity } from './types.js';
+import type { ChainId, CexDexOpportunity } from './types.js';
 
 const logger = createLogger('cex-dex-detector');
 

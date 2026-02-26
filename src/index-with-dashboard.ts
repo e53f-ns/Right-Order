@@ -5,7 +5,7 @@
  * Usage: npm run dev:all
  */
 
-import type { Exchange } from 'ccxt';
+// ccxt types not needed in this entry point
 
 import { loadConfig } from './config/index.js';
 import type { ExchangeId } from './config/schema.js';
@@ -34,11 +34,10 @@ import {
   registerConnectedExchanges,
 } from './utils/symbol-manager.js';
 import {
-  startDexScanner as startDexScannerOld,
-  stopDexScanner as stopDexScannerOld,
+  startDexScanner,
+  stopDexScanner,
   enableDexDashboard,
-  updateCexPrices,
-  getDexScannerStats as getDexScannerStatsOld,
+  getDexScannerStats,
 } from './dex/index.js';
 import {
   updateCexPrice as updateDexScannerCexPrice,
@@ -276,12 +275,12 @@ async function main(): Promise<void> {
       // Feed CEX prices to DEX scanner for CEX-DEX arbitrage detection
       const bestBid = orderbook.bids[0]?.price;
       const bestAsk = orderbook.asks[0]?.price;
-      if (bestBid && bestAsk && bestBid > 0 && bestAsk > 0) {
+      if (bestBid && bestAsk && Number(bestBid) > 0 && Number(bestAsk) > 0) {
         updateDexScannerCexPrice(
           orderbook.symbol,
           orderbook.exchange as ExchangeId,
-          bestBid,
-          bestAsk,
+          Number(bestBid),
+          Number(bestAsk),
         );
 
         // Compute mid-price and feed to stat-arb + pairs-trading engines

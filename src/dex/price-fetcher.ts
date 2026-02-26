@@ -4,7 +4,6 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { loadConfig } from '../config/index.js';
 import {
   API_CONFIGS,
   CHAIN_ID_MAP,
@@ -16,7 +15,6 @@ import {
 import type {
   ChainId,
   DexProtocol,
-  GasEstimate,
 } from './types.js';
 
 /**

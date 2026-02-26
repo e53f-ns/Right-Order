@@ -3,7 +3,7 @@
  * Chain configs, DEX protocols, and API endpoints
  */
 
-import type { ChainConfig, ChainId, DexConfig, DexProtocol, DexApiConfig } from './types.js';
+import type { ChainConfig, ChainId, DexConfig, DexApiConfig } from './types.js';
 
 /**
  * Blockchain network configurations

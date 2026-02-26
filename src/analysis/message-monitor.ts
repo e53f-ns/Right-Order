@@ -202,7 +202,7 @@ function extractKeywords(content: string): string[] {
 /**
  * Fetch messages from RSS feed
  */
-async function fetchRssMessages(url: string): Promise<Array<{ title: string; content: string; link: string; date: number }>> {
+async function fetchRssMessages(_url: string): Promise<Array<{ title: string; content: string; link: string; date: number }>> {
   // In production, would use rss-parser or similar
   // For now, return mock data
   return [];

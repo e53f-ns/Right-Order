@@ -166,17 +166,8 @@ async function fetchMoralisNFTs(collection: string, chain: NFTChain): Promise<NF
     
     if (!response.ok) return [];
     
-    const data = await response.json() as {
-      result: Array<{
-        token_id: string;
-        token_address: string;
-        name: string;
-        token_uri: string;
-        metadata: string;
-      }>;
-    };
-    
-    // Would need to cross-reference with marketplace listings
+    // Response parsed but cross-referencing with marketplace listings not yet implemented
+    await response.json();
     return [];
   } catch (error) {
     logger.debug({ collection, error: error instanceof Error ? error.message : String(error) }, 'Moralis NFT fetch error');

@@ -3,7 +3,7 @@
  * Types for DEX pools, chains, and arbitrage opportunities
  */
 
-import type { TradingSymbol, TimestampMs, Percentage, UsdValue } from '../types/branded.js';
+import type { TimestampMs } from '../types/branded.js';
 
 /**
  * Supported blockchain networks
