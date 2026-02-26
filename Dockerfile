@@ -6,19 +6,22 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install ALL deps (including devDeps for tsc + prisma)
+# Install ALL deps (devDeps needed for tsc)
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy prisma schema + config, then generate client
+# Generate Prisma client BEFORE copying source
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 RUN npx prisma generate
 
-# Copy source and compile
+# Copy source and compile TypeScript
 COPY tsconfig.json ./
 COPY src ./src
 RUN npx tsc --outDir dist
+
+# Prune devDeps so we only carry production deps forward
+RUN npm prune --omit=dev
 
 # ── Stage 2: Production ──
 FROM node:22-alpine AS runner
@@ -27,25 +30,22 @@ WORKDIR /app
 # Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Production deps only
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
-# Copy generated Prisma client from builder (lives in src/generated/prisma)
-COPY --from=builder /app/src/generated ./src/generated
-
-# Copy Prisma schema + config (needed at runtime for migrations)
-COPY prisma ./prisma
-COPY prisma.config.ts ./
-
-# Copy compiled JS
+# Copy everything needed from builder in one shot:
+# - node_modules (with Prisma generated client intact)
+# - compiled JS output
+# - Prisma schema + config (for runtime migrations)
+# - generated Prisma client source
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/generated ./src/generated
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/stats || exit 1
 
-# Run as non-root
 USER appuser
 
 EXPOSE 3000
@@ -55,3 +55,21 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 CMD ["node", "dist/dashboard-main.js"]
+
+# Stage 1: Build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY prisma ./prisma
+RUN npx prisma generate
+COPY . .
+RUN npm run build
+
+# Stage 2: Production
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+EXPOSE 3000
+CMD ["node", "dist/index.js"]

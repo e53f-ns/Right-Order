@@ -1,5 +1,6 @@
 node_modules
 .prisma
+src/generated
 frontend/node_modules
 frontend/dist
 dist
@@ -7,8 +8,17 @@ dist
 .env
 .env.*
 *.log
+*.db-journal
 .DS_Store
 .vscode
 .windsurf
 prisma/dev.db*
 data/
+nixpacks.toml
+node_modules
+.prisma
+prisma/dev.db*
+*.db-journal
+dist
+.git
+.env
