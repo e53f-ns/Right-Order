@@ -158,6 +158,11 @@ export class DashboardServer {
   private readonly wss: WebSocketServer;
   private isRunning = false;
 
+  /** Expose the Express app for external route registration */
+  getApp(): Express {
+    return this.app;
+  }
+
   constructor(config: Partial<DashboardServerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
