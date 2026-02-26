@@ -102,10 +102,12 @@ async function main(): Promise<void> {
 
   // Initialize and start server
   const PORT = process.env['PORT'] ? Number(process.env['PORT']) : 3000;
-  const server = getDashboardServer({ port: PORT, host: '0.0.0.0' }); // host '0.0.0.0' — обязательно для Railway/Docker
+  const server = getDashboardServer({ port: PORT, host: '0.0.0.0' }); 
+  server.getApp().get('/health', (_req, res) => {
+    res.status(200).send('OK - Right Order is alive');
+  });
   await server.start();
-
-  logger.info('Dashboard is ready at http://localhost:3000');
+  logger.info(`Dashboard server listening on http://0.0.0.0:${PORT}`);
   logger.info('Generating mock data for testing...');
 
   // Generate mock data periodically
