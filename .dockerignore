@@ -14,11 +14,3 @@ dist
 .windsurf
 prisma/dev.db*
 data/
-nixpacks.toml
-node_modules
-.prisma
-prisma/dev.db*
-*.db-journal
-dist
-.git
-.env
