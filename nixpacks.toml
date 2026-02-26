@@ -1,0 +1,18 @@
+# Railway / Nixpacks build configuration
+# Ensures prisma generate runs before tsc and stale .prisma cache is cleared
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = [
+  "rm -rf node_modules/.prisma src/generated/prisma",
+  "npx prisma generate",
+  "npx tsc --outDir dist"
+]
+
+[start]
+cmd = "node dist/dashboard-main.js"

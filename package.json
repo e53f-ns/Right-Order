@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "prisma:generate": "prisma generate",
-    "build": "npm run prisma:generate && tsc --outDir dist",
+    "prebuild": "rm -rf node_modules/.prisma src/generated/prisma && npm run prisma:generate",
+    "build": "tsc --outDir dist",
     "postinstall": "prisma generate || true",
     "start": "node dist/dashboard-main.js",
     "dev": "tsx watch src/index.ts",
