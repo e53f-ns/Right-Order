@@ -101,7 +101,8 @@ async function main(): Promise<void> {
   const store = getDashboardStore();
 
   // Initialize and start server
-  const server = getDashboardServer({ port: 3000, host: 'localhost' });
+  const PORT = process.env['PORT'] ? Number(process.env['PORT']) : 3000;
+  const server = getDashboardServer({ port: PORT, host: '0.0.0.0' }); // host '0.0.0.0' — обязательно для Railway/Docker
   await server.start();
 
   logger.info('Dashboard is ready at http://localhost:3000');
