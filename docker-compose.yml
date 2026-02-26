@@ -1,0 +1,81 @@
+# ══════════════════════════════════════════════
+# Right Order — Docker Compose (Production)
+# ══════════════════════════════════════════════
+# Usage:
+#   cp .env.example .env   # configure all variables
+#   docker compose up -d
+#   docker compose exec backend npx prisma migrate deploy
+# ══════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL ──
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rightorder}
+      POSTGRES_USER: ${POSTGRES_USER:-rightorder}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rightorder} -d ${POSTGRES_DB:-rightorder}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Backend (Node.js + Prisma) ──
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rightorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rightorder}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CRYPTO_USDT_TRC20_ADDRESS: ${CRYPTO_USDT_TRC20_ADDRESS:-}
+      CRYPTO_USDT_ERC20_ADDRESS: ${CRYPTO_USDT_ERC20_ADDRESS:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/stats"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend (Nginx + Vite build) ──
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  pgdata:

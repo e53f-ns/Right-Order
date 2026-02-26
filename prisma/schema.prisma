@@ -1,0 +1,166 @@
+// Prisma schema — Right Order Arbitrage Scanner
+// PostgreSQL database with full user system, payments, alerts
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum Role {
+  user
+  admin
+}
+
+enum SubscriptionPlan {
+  free
+  pro
+  elite
+  ultimate
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+  expired
+}
+
+enum PaymentMethod {
+  stripe
+  crypto_usdt_trc20
+  crypto_usdt_erc20
+  binance_pay
+  manual
+}
+
+enum AlertType {
+  cex_spread
+  funding_arb
+  futures_arb
+  stat_arb
+  pairs_trading
+  p2p_arb
+  multi_hop
+  custom
+}
+
+// ─── Models ─────────────────────────────────────────────
+
+model User {
+  id                   String           @id @default(cuid())
+  email                String           @unique
+  passwordHash         String
+  role                 Role             @default(user)
+  subscription         SubscriptionPlan @default(free)
+  subscriptionExpiresAt DateTime?
+  stripeCustomerId     String?          @unique
+  depositSize          Float            @default(1000)
+  telegramChatId       String?
+  telegramEnabled      Boolean          @default(false)
+  telegramMinNet       Float            @default(1.0)
+  twoFactorEnabled     Boolean          @default(false)
+  twoFactorSecret      String?
+  preferences          Json             @default("{\"defaultTab\":\"spreads\",\"autoRefreshSec\":30,\"theme\":\"dark\"}")
+  alertsSentToday      Int              @default(0)
+  alertsResetAt        DateTime         @default(now())
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  payments       Payment[]
+  alertLogs      AlertLog[]
+  favorites      FavoriteSpread[]
+  refreshTokens  RefreshToken[]
+
+  @@index([email])
+  @@index([stripeCustomerId])
+  @@index([role])
+  @@index([subscription])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan
+  billing       String        @default("monthly") // "monthly" | "yearly"
+  amount        Float
+  currency      String        @default("USD")
+  method        PaymentMethod
+  status        PaymentStatus @default(pending)
+  transactionId String?       @unique
+  stripeSessionId String?     @unique
+  cryptoAddress String?
+  cryptoTxHash  String?
+  metadata      Json?
+  expiresAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeSessionId])
+  @@index([transactionId])
+}
+
+model AlertLog {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       AlertType
+  symbol     String
+  exchange   String?
+  buyExchange  String?
+  sellExchange String?
+  spreadPct  Float?
+  profitUsd  Float?
+  message    String
+  channel    String    @default("telegram") // "telegram" | "email" | "push"
+  delivered  Boolean   @default(false)
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model FavoriteSpread {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol       String
+  buyExchange  String
+  sellExchange String
+  type         String   @default("cex_spread")
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, symbol, buyExchange, sellExchange])
+  @@index([userId])
+}

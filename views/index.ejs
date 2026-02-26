@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Arbitrage Scanner</h1>
+      <nav>
+        <a href="/" class="active" id="cexTab">CEX Spreads</a>
+        <a href="#" id="dexTab">DEX</a>
+        <a href="#" id="walletsTab">Wallets</a>
+        <a href="#" id="fundingTab">Funding</a>
+        <a href="#" id="messagesTab">Messages</a>
+        <a href="#" id="nftsTab">NFTs</a>
+        <a href="#" id="aiTab">AI</a>
+      </nav>
+      <div class="connection-status" id="connectionStatus">
+        <span class="status-dot disconnected"></span>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </header>
+
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-item">
+        <span class="stat-label">Active Exchanges</span>
+        <span class="stat-value" id="statExchanges"><%= stats.activeExchanges.length %></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Connected</span>
+        <span class="stat-value" id="statConnected"><%= stats.connectedExchanges %>/<%= stats.totalExchanges %></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Symbols</span>
+        <span class="stat-value" id="statSymbols"><%= stats.activeSymbols %></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Calculations</span>
+        <span class="stat-value" id="statCalculations"><%= stats.totalCalculations %></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Best Net</span>
+        <span class="stat-value highlight" id="statBestNet"><%= stats.bestNetPercent %>%</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Unique Spreads</span>
+        <span class="stat-value" id="statOpportunities"><%= stats.opportunitiesCount %></span>
+      </div>
+    </div>
+
+    <div class="filters" id="cexFilters">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="filterType">Type</label>
+          <select id="filterType">
+            <option value="all">All</option>
+            <option value="simple">Simple</option>
+            <option value="triangular">Triangular</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterSymbol">Symbol</label>
+          <input type="text" id="filterSymbol" placeholder="BTC/USDT">
+        </div>
+        <div class="filter-group">
+          <label for="filterExchange">Exchange</label>
+          <select id="filterExchange">
+            <option value="all">All Exchanges</option>
+            <option value="binance">Binance</option>
+            <option value="bybit">Bybit</option>
+            <option value="okx">OKX</option>
+            <option value="kucoin">KuCoin</option>
+            <option value="gateio">Gate.io</option>
+            <option value="mexc">MEXC</option>
+            <option value="htx">HTX</option>
+            <option value="bitget">Bitget</option>
+            <option value="kraken">Kraken</option>
+            <option value="bingx">BingX</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterMinGross">Min Gross %</label>
+          <input type="number" id="filterMinGross" placeholder="0" step="0.01" value="0">
+        </div>
+        <div class="filter-group">
+          <label for="filterMinNet">Min Net %</label>
+          <input type="number" id="filterMinNet" placeholder="-0.5" step="0.01" value="-0.5">
+        </div>
+        <div class="filter-group">
+          <label for="filterMinProfit">Min Profit $</label>
+          <input type="number" id="filterMinProfit" placeholder="0" step="1" value="0">
+        </div>
+        <div class="filter-group">
+          <label for="userDeposit">User Deposit $</label>
+          <input type="number" id="userDeposit" placeholder="1000" step="100" value="1000">
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="filterMinDepth">Min Depth $</label>
+          <input type="number" id="filterMinDepth" placeholder="0" step="100" value="0">
+        </div>
+        <div class="filter-group">
+          <label for="filterMinConf">Min Conf %</label>
+          <input type="number" id="filterMinConf" placeholder="0" step="5" value="0">
+        </div>
+        <div class="filter-group">
+          <label for="filterMaxAge">Max Age (s)</label>
+          <input type="number" id="filterMaxAge" placeholder="120" step="10" value="120">
+        </div>
+        <div class="filter-group filter-checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterPositiveOnly">
+            <span>Positive Net Only</span>
+          </label>
+        </div>
+        <div class="filter-group filter-checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterExecutableOnly" checked>
+            <span>Executable Only</span>
+          </label>
+        </div>
+        <div class="filter-group filter-checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterNearProfitable" checked>
+            <span>Near Profitable</span>
+          </label>
+        </div>
+        <div class="filter-group">
+          <label for="updateInterval">Refresh</label>
+          <select id="updateInterval">
+            <option value="30000">30 sec</option>
+            <option value="60000">1 min</option>
+            <option value="300000">5 min</option>
+            <option value="600000">10 min</option>
+          </select>
+        </div>
+        <div class="live-indicator" id="liveIndicator">
+          <span class="live-dot"></span>
+          <span id="liveText">Live updates every 30s</span>
+        </div>
+        <button id="applyFilters" class="btn">Apply</button>
+        <button id="clearFilters" class="btn btn-secondary">Reset</button>
+        <div class="filter-spacer"></div>
+        <button id="generateTestData" class="btn btn-test">+ Test</button>
+        <button id="clearAll" class="btn btn-danger">Clear</button>
+      </div>
+    </div>
+
+    <div class="table-container" id="cexTableContainer">
+      <table id="spreadsTable" class="spreads-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Symbol / Path</th>
+            <th>Buy</th>
+            <th>Sell</th>
+            <th class="sortable" data-sort="grossPercent">Gross %</th>
+            <th class="sortable active" data-sort="netPercent">Net %</th>
+            <th class="sortable" data-sort="profitUsd">Profit $</th>
+            <th>MinDep</th>
+            <th>MaxDep</th>
+            <th>Network</th>
+            <th>Exec</th>
+            <th class="sortable" data-sort="confidence">Conf</th>
+            <th class="sortable" data-sort="ageSeconds">Age</th>
+          </tr>
+        </thead>
+        <tbody id="spreadsBody">
+          <tr class="empty-row">
+            <td colspan="13">
+              <div class="empty-state">
+                <p>Waiting for spreads...</p>
+                <p class="hint">Click "Test" to add sample spreads, or wait for scanner</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DEX Scanner Section (hidden by default) -->
+    <div id="dexSection" class="table-container" style="display: none;">
+      <div class="dex-header">
+        <h2>DEX Scanner</h2>
+        <span class="dex-status" id="dexStatus">Initializing...</span>
+      </div>
+      
+      <!-- DEX Filters -->
+      <div class="filters dex-filters">
+        <div class="filter-group">
+          <label for="dexFilterMinNet">Min Net %</label>
+          <input type="number" id="dexFilterMinNet" value="-0.5" step="0.1">
+        </div>
+        <div class="filter-group">
+          <label for="dexFilterDex">DEX</label>
+          <select id="dexFilterDex">
+            <option value="all">All DEXs</option>
+            <option value="uniswap_v3">Uniswap V3</option>
+            <option value="pancakeswap">PancakeSwap</option>
+            <option value="sushiswap">SushiSwap</option>
+            <option value="quickswap">QuickSwap</option>
+            <option value="camelot">Camelot</option>
+            <option value="velodrome">Velodrome</option>
+            <option value="aerodrome">Aerodrome</option>
+            <option value="trader_joe">Trader Joe</option>
+            <option value="raydium">Raydium</option>
+            <option value="orca">Orca</option>
+            <option value="jupiter">Jupiter</option>
+            <option value="balancer">Balancer</option>
+            <option value="curve">Curve</option>
+            <option value="oneinch">1inch</option>
+            <option value="kyberswap">KyberSwap</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="dexFilterChain">Chain</label>
+          <select id="dexFilterChain">
+            <option value="all">All Chains</option>
+            <option value="ethereum">Ethereum</option>
+            <option value="bsc">BSC</option>
+            <option value="polygon">Polygon</option>
+            <option value="arbitrum">Arbitrum</option>
+            <option value="optimism">Optimism</option>
+            <option value="base">Base</option>
+            <option value="avalanche">Avalanche</option>
+            <option value="solana">Solana</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="dexFilterType">Type</label>
+          <select id="dexFilterType">
+            <option value="all">All Types</option>
+            <option value="cex_to_dex">CEX → DEX</option>
+            <option value="dex_to_cex">DEX → CEX</option>
+            <option value="flash_loan">Flash Loan</option>
+            <option value="new_pool">New Pool</option>
+          </select>
+        </div>
+        <button id="applyDexFilters">Apply</button>
+      </div>
+
+      <table id="dexTable">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Symbol</th>
+            <th>DEX</th>
+            <th>Chain</th>
+            <th>Buy</th>
+            <th>Sell</th>
+            <th>Gross %</th>
+            <th>Net %</th>
+            <th>Profit</th>
+            <th>Gas $</th>
+            <th>Liq. $</th>
+            <th>Conf.</th>
+            <th>Pool</th>
+          </tr>
+        </thead>
+        <tbody id="dexBody">
+          <tr class="empty-row">
+            <td colspan="13">
+              <div class="empty-state">
+                <p>🔷 DEX Scanner Active</p>
+                <p class="hint">Monitoring 15 DEXs across 8 chains for CEX-DEX arbitrage, flash loans, and new pool opportunities</p>
+                <p class="hint">Supported: Uniswap, PancakeSwap, SushiSwap, Raydium, Jupiter, Balancer, Curve, and more</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="dex-stats">
+        <span id="dexPoolCount">Pools: 0</span>
+        <span id="dexOppCount">Opportunities: 0</span>
+        <span id="dexLastScan">Last scan: never</span>
+      </div>
+    </div>
+
+    <!-- Wallets Analysis Section -->
+    <div id="walletsSection" class="table-container" style="display: none;">
+      <div class="section-header">
+        <h2>👛 Wallet Analysis</h2>
+        <span class="section-status" id="walletStatus">Ready</span>
+      </div>
+      
+      <div class="wallet-input-section">
+        <div class="input-group">
+          <label for="walletAddress">Wallet Address</label>
+          <input type="text" id="walletAddress" placeholder="0x... or Solana address">
+        </div>
+        <button id="analyzeWalletBtn" class="btn-primary">Analyze</button>
+        <span id="walletAnalyzing" style="display: none;">Analyzing...</span>
+      </div>
+
+      <div id="walletSummary" class="wallet-summary" style="display: none;">
+        <div class="summary-item">
+          <span class="summary-label">Total PNL</span>
+          <span class="summary-value" id="walletTotalPnl">$0.00</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Win Rate</span>
+          <span class="summary-value" id="walletWinRate">0%</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Txs</span>
+          <span class="summary-value" id="walletTotalTx">0</span>
+        </div>
+      </div>
+
+      <table id="walletsTable">
+        <thead>
+          <tr>
+            <th>Chain</th>
+            <th>Tx Count</th>
+            <th>PNL USD</th>
+            <th>Win Rate %</th>
+            <th>Winning</th>
+            <th>Losing</th>
+            <th>Avg Trade</th>
+            <th>Last Activity</th>
+          </tr>
+        </thead>
+        <tbody id="walletsBody">
+          <tr class="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <p>👛 Enter a wallet address to analyze</p>
+                <p class="hint">Supports ETH, BSC, Polygon, Arbitrum, Solana</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Funding Rates Section -->
+    <div id="fundingSection" class="table-container" style="display: none;">
+      <div class="section-header">
+        <h2>📊 Funding Rates</h2>
+        <span class="section-status active" id="fundingStatus">Live</span>
+      </div>
+      
+      <div class="funding-filters">
+        <div class="filter-group">
+          <label for="fundingSymbol">Symbol</label>
+          <select id="fundingSymbol">
+            <option value="all">All Symbols</option>
+            <option value="BTCUSDT">BTC</option>
+            <option value="ETHUSDT">ETH</option>
+            <option value="SOLUSDT">SOL</option>
+            <option value="BNBUSDT">BNB</option>
+            <option value="XRPUSDT">XRP</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="fundingExchange">Exchange</label>
+          <select id="fundingExchange">
+            <option value="all">All Exchanges</option>
+            <option value="binance">Binance</option>
+            <option value="bybit">Bybit</option>
+            <option value="okx">OKX</option>
+            <option value="bitget">Bitget</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="fundingDirection">Direction</label>
+          <select id="fundingDirection">
+            <option value="all">All</option>
+            <option value="positive">Positive (Short)</option>
+            <option value="negative">Negative (Long)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="funding-summary">
+        <div class="summary-card positive">
+          <h4>Top Positive Rate</h4>
+          <span id="topPositiveSymbol">-</span>
+          <span id="topPositiveRate" class="rate-value">0.00%</span>
+        </div>
+        <div class="summary-card negative">
+          <h4>Top Negative Rate</h4>
+          <span id="topNegativeSymbol">-</span>
+          <span id="topNegativeRate" class="rate-value">0.00%</span>
+        </div>
+        <div class="summary-card arbitrage">
+          <h4>Best Arbitrage</h4>
+          <span id="bestArbSymbol">-</span>
+          <span id="bestArbSpread" class="rate-value">0.00%</span>
+        </div>
+      </div>
+
+      <table id="fundingTable">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Exchange</th>
+            <th>Rate</th>
+            <th>APY</th>
+            <th>Daily Yield</th>
+            <th>Direction</th>
+            <th>Next Funding</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody id="fundingBody">
+          <tr class="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <p>📊 Loading funding rates...</p>
+                <p class="hint">Monitoring Binance, Bybit, OKX, Bitget perpetual markets</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="sub-header">Funding Arbitrage Opportunities</h3>
+      <table id="fundingArbTable">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Long Exchange</th>
+            <th>Short Exchange</th>
+            <th>Long Rate</th>
+            <th>Short Rate</th>
+            <th>Spread</th>
+            <th>Daily %</th>
+            <th>APY</th>
+          </tr>
+        </thead>
+        <tbody id="fundingArbBody">
+          <tr class="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <p>No arbitrage opportunities detected</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="funding-stats">
+        <span id="fundingRateCount">Rates: 0</span>
+        <span id="fundingArbCount">Arbitrages: 0</span>
+        <span id="fundingLastScan">Last scan: never</span>
+      </div>
+    </div>
+
+    <!-- Messages Section -->
+    <div id="messagesSection" class="table-container" style="display: none;">
+      <div class="section-header">
+        <h2>📡 Message Monitor</h2>
+        <span class="section-status active" id="messagesStatus">Live</span>
+      </div>
+      
+      <div class="message-filters">
+        <div class="filter-group">
+          <label for="msgCategory">Category</label>
+          <select id="msgCategory">
+            <option value="all">All</option>
+            <option value="listing">Listing</option>
+            <option value="pump">Pump</option>
+            <option value="airdrop">Airdrop</option>
+            <option value="hack">Hack/Exploit</option>
+            <option value="whale">Whale</option>
+            <option value="launch">Launch</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="msgPriority">Priority</label>
+          <select id="msgPriority">
+            <option value="all">All</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <button id="exportMessages" class="btn-export">Export CSV</button>
+      </div>
+
+      <div class="message-summary">
+        <div class="summary-card">
+          <h4>Total Alerts</h4>
+          <span id="msgTotalCount" class="stat-value">0</span>
+        </div>
+        <div class="summary-card high">
+          <h4>High Priority</h4>
+          <span id="msgHighCount" class="stat-value">0</span>
+        </div>
+        <div class="summary-card">
+          <h4>Channels</h4>
+          <span id="msgChannelCount" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <table id="messagesTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Priority</th>
+            <th>Category</th>
+            <th>Source</th>
+            <th>Title</th>
+            <th>Tokens</th>
+            <th>Sentiment</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="messagesBody">
+          <tr class="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <p>📡 Loading message alerts...</p>
+                <p class="hint">Monitoring news, Telegram, Twitter for trading signals</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- NFTs Section -->
+    <div id="nftsSection" class="table-container" style="display: none;">
+      <div class="section-header">
+        <h2>🖼️ NFT Scanner</h2>
+        <span class="section-status" id="nftsStatus">Ready</span>
+      </div>
+      
+      <div class="nft-filters">
+        <div class="filter-group">
+          <label for="nftChain">Chain</label>
+          <select id="nftChain">
+            <option value="ethereum">Ethereum</option>
+            <option value="polygon">Polygon</option>
+            <option value="solana">Solana</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="nftMinProfit">Min Profit %</label>
+          <input type="number" id="nftMinProfit" value="10" step="1">
+        </div>
+        <button id="scanNfts" class="btn-primary">Scan NFTs</button>
+        <button id="exportNfts" class="btn-export">Export CSV</button>
+      </div>
+
+      <table id="nftsTable">
+        <thead>
+          <tr>
+            <th>Collection</th>
+            <th>Chain</th>
+            <th>Floor Price</th>
+            <th>Listed Price</th>
+            <th>Rarity Rank</th>
+            <th>Profit %</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="nftsBody">
+          <tr class="empty-row">
+            <td colspan="7">
+              <div class="empty-state">
+                <p>🖼️ Click "Scan NFTs" to find underpriced NFTs</p>
+                <p class="hint">Monitors OpenSea, Blur for rare NFTs below floor</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- AI Assistant Section -->
+    <div id="aiSection" class="table-container" style="display: none;">
+      <div class="section-header">
+        <h2>🤖 AI Assistant</h2>
+        <span class="section-status" id="aiStatus">Ready</span>
+      </div>
+      
+      <div class="ai-chat-container">
+        <div class="ai-messages" id="aiMessages">
+          <div class="ai-message assistant">
+            <span class="ai-avatar">🤖</span>
+            <div class="ai-content">
+              <p>Hello! I'm your AI trading assistant. I can help you with:</p>
+              <ul>
+                <li>Analyzing arbitrage opportunities</li>
+                <li>Explaining funding rate strategies</li>
+                <li>Wallet analysis insights</li>
+                <li>Market trends and signals</li>
+              </ul>
+              <p>Ask me anything about the data you see in the dashboard!</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="ai-input-container">
+          <input type="text" id="aiInput" placeholder="Ask about spreads, wallets, funding rates...">
+          <button id="aiSend" class="btn-primary">Send</button>
+        </div>
+      </div>
+      
+      <div class="ai-suggestions">
+        <span class="suggestion-label">Try:</span>
+        <button class="suggestion-btn" data-query="What's the best arbitrage opportunity right now?">Best arb opportunity</button>
+        <button class="suggestion-btn" data-query="Explain the top funding rate arbitrage">Top funding arb</button>
+        <button class="suggestion-btn" data-query="Which tokens have the most whale activity?">Whale activity</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span id="lastUpdate">Last update: never</span>
+      <span id="wsStatus">WebSocket: connecting...</span>
+      <span id="spreadCount">0 spreads</span>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    let REFRESH_INTERVAL = 30000; // Default 30 seconds
+    const WS_RECONNECT_DELAY = 3000;
+    const MAX_DISPLAY_SPREADS = 100;
+
+    // State
+    let spreads = [];
+    let ws = null;
+    let wsConnected = false;
+    let reconnectAttempts = 0;
+    let refreshIntervalId = null;
+    let isLoading = false;
+
+    // DOM elements
+    const spreadsBody = document.getElementById('spreadsBody');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+    const lastUpdateEl = document.getElementById('lastUpdate');
+    const wsStatusEl = document.getElementById('wsStatus');
+    const spreadCountEl = document.getElementById('spreadCount');
+
+    // Connect to WebSocket
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+      ws.onopen = () => {
+        wsConnected = true;
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+        console.log('WebSocket connected');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          handleWsMessage(message);
+        } catch (e) {
+          console.error('Failed to parse WS message:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        wsConnected = false;
+        updateConnectionStatus(false);
+        reconnectAttempts++;
+        const delay = Math.min(WS_RECONNECT_DELAY * reconnectAttempts, 10000);
+        console.log(`WebSocket disconnected, reconnecting in ${delay}ms...`);
+        setTimeout(connectWebSocket, delay);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    // Handle WebSocket message
+    function handleWsMessage(message) {
+      lastUpdateEl.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+
+      switch (message.type) {
+        case 'spreads_batch':
+          spreads = message.data || [];
+          console.log(`Received batch: ${spreads.length} spreads`);
+          renderSpreads();
+          break;
+        case 'spread_update':
+          if (message.data) {
+            updateSpread(message.data);
+          }
+          break;
+        case 'stats_update':
+          if (message.data) {
+            updateStats(message.data);
+          }
+          break;
+      }
+    }
+
+    // Update or add a spread
+    function updateSpread(spread) {
+      // Find existing by matching key (type + symbol + route)
+      const key = spread.type === 'triangular' && spread.pathDescription 
+        ? `triangular:${spread.pathDescription}`
+        : `${spread.type}:${spread.symbol}:${spread.buyExchange}→${spread.sellExchange}`;
+      
+      const index = spreads.findIndex(s => {
+        const sKey = s.type === 'triangular' && s.pathDescription 
+          ? `triangular:${s.pathDescription}`
+          : `${s.type}:${s.symbol}:${s.buyExchange}→${s.sellExchange}`;
+        return sKey === key;
+      });
+      
+      if (index >= 0) {
+        // Update existing
+        spreads[index] = spread;
+      } else {
+        // Add new
+        spreads.unshift(spread);
+      }
+      
+      // Keep only last MAX_DISPLAY_SPREADS
+      if (spreads.length > MAX_DISPLAY_SPREADS) {
+        spreads = spreads.slice(0, MAX_DISPLAY_SPREADS);
+      }
+      
+      // Re-sort and render
+      spreads.sort((a, b) => b.netPercent - a.netPercent);
+      renderSpreads();
+    }
+
+    // Update stats display
+    function updateStats(stats) {
+      if (stats.activeExchangesCount !== undefined) {
+        document.getElementById('statExchanges').textContent = stats.activeExchangesCount;
+      }
+      if (stats.connectedExchanges !== undefined && stats.totalExchanges !== undefined) {
+        document.getElementById('statConnected').textContent = stats.connectedExchanges + '/' + stats.totalExchanges;
+      }
+      if (stats.activeSymbols !== undefined) {
+        document.getElementById('statSymbols').textContent = stats.activeSymbols;
+      }
+      if (stats.totalCalculations !== undefined) {
+        document.getElementById('statCalculations').textContent = stats.totalCalculations;
+      }
+      if (stats.bestNetPercent !== undefined) {
+        document.getElementById('statBestNet').textContent = stats.bestNetPercent.toFixed(4) + '%';
+      }
+      if (stats.opportunitiesCount !== undefined) {
+        document.getElementById('statOpportunities').textContent = stats.opportunitiesCount;
+      }
+    }
+
+    // Render spreads table
+    function renderSpreads() {
+      const now = Date.now();
+      const filtered = applyFilters(spreads);
+      spreadCountEl.textContent = `${filtered.length} spreads`;
+      
+      if (filtered.length === 0) {
+        spreadsBody.innerHTML = `
+          <tr class="empty-row">
+            <td colspan="13">
+              <div class="empty-state">
+                <p>No matching spreads</p>
+                <p class="hint">Total in memory: ${spreads.length}. Adjust filters or click "Test"</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Get user deposit for profit recalculation
+      const userDeposit = parseFloat(document.getElementById('userDeposit').value) || 1000;
+      
+      spreadsBody.innerHTML = filtered.slice(0, MAX_DISPLAY_SPREADS).map(spread => {
+        const age = spread.ageSeconds !== undefined ? spread.ageSeconds : Math.floor((now - spread.timestamp) / 1000);
+        const isProfitable = spread.netPercent > 0;
+        const isNearProfitable = spread.netPercent > -0.1;
+        const isStale = age > 60;
+        const isNew = spread.isNew === true;
+        const isExecutable = spread.executable === true;
+        
+        // Recalculate profit based on user deposit
+        const effectiveDeposit = Math.min(userDeposit, spread.depthUsd || userDeposit);
+        const recalcProfit = effectiveDeposit * (spread.netPercent / 100);
+        const minDepCalc = spread.minDepositUsd || 50;
+        const maxDepCalc = spread.maxDepositUsd || spread.depthUsd || 0;
+        
+        // Type badge
+        const typeBadge = spread.type === 'simple' 
+          ? '<span class="type-badge simple">S</span>'
+          : '<span class="type-badge triangular">T</span>';
+        
+        // Executable badge
+        const execBadge = isExecutable 
+          ? '<span class="exec-badge yes">YES</span>'
+          : '<span class="exec-badge no">NO</span>';
+        
+        // Symbol/path display
+        let symbolDisplay = spread.symbol;
+        if (spread.type === 'triangular' && spread.pathDescription) {
+          symbolDisplay = `<span class="path-desc">${spread.pathDescription}</span>`;
+        }
+        
+        // Route display
+        const buyDisplay = spread.type === 'triangular' ? spread.buyExchange : spread.buyExchange;
+        const sellDisplay = spread.type === 'triangular' ? '—' : spread.sellExchange;
+        
+        // Row classes - executable gets special highlight
+        const rowClasses = [
+          isExecutable ? 'executable-row' : '',
+          isProfitable ? 'profitable' : '',
+          isNearProfitable && !isProfitable ? 'near-profitable' : '',
+          isStale ? 'stale-row' : '',
+          isNew ? 'new-row' : ''
+        ].filter(c => c).join(' ');
+        
+        // Network badge with colors
+        const networkName = spread.network || spread.transferNetwork || '';
+        const networkColors = {
+          'ETH': 'eth', 'ERC20': 'eth', 'ETHEREUM': 'eth',
+          'SOL': 'sol', 'SOLANA': 'sol', 'SPL': 'sol',
+          'BSC': 'bsc', 'BEP20': 'bsc', 'BNB': 'bsc',
+          'TRX': 'trx', 'TRC20': 'trx', 'TRON': 'trx',
+          'MATIC': 'matic', 'POLYGON': 'matic',
+          'ARB': 'arb', 'ARBITRUM': 'arb',
+          'OP': 'op', 'OPTIMISM': 'op',
+          'AVAX': 'avax', 'AVALANCHE': 'avax',
+          'BASE': 'base',
+          'TON': 'ton'
+        };
+        const networkClass = networkColors[networkName.toUpperCase()] || 'default';
+        const networkBadge = networkName 
+          ? `<span class="network-badge ${networkClass}">${networkName}</span>`
+          : '<span class="network-badge">—</span>';
+        
+        // Chain badges
+        const withdrawChains = spread.withdrawChains || [];
+        const depositChains = spread.depositChains || [];
+        const intersectionChains = spread.intersectionChains || [];
+        const withdrawBadge = withdrawChains.length > 0 
+          ? withdrawChains.map(c => `<span class="chain-badge">${c}</span>`).join(' ')
+          : '—';
+        const depositBadge = depositChains.length > 0 
+          ? depositChains.map(c => `<span class="chain-badge">${c}</span>`).join(' ')
+          : '—';
+        const intersectionBadge = intersectionChains.length > 0 
+          ? intersectionChains.map(c => `<span class="chain-badge match">${c}</span>`).join(' ')
+          : '—';
+        
+        // Deposit limits
+        const minDep = spread.minDepositUsd !== undefined ? `$${spread.minDepositUsd.toFixed(0)}` : '—';
+        const maxDep = spread.maxDepositUsd !== undefined ? `$${spread.maxDepositUsd.toFixed(0)}` : '—';
+        
+        // Row class based on net percent
+        const netClass = spread.netPercent > 0 ? 'row-positive' : 'row-negative';
+        
+        return `
+          <tr class="${rowClasses} ${netClass}">
+            <td>${typeBadge}</td>
+            <td class="symbol">${symbolDisplay}</td>
+            <td class="exchange">${buyDisplay}</td>
+            <td class="exchange">${sellDisplay}</td>
+            <td class="${spread.grossPercent > 0 ? 'positive' : 'negative'}">${spread.grossPercent.toFixed(4)}%</td>
+            <td class="${spread.netPercent > 0 ? 'positive' : 'negative'} bold">${spread.netPercent.toFixed(4)}%</td>
+            <td class="${recalcProfit > 0 ? 'positive' : 'negative'}">$${recalcProfit.toFixed(2)}</td>
+            <td class="muted">$${minDepCalc.toFixed(0)}</td>
+            <td class="muted">$${maxDepCalc.toFixed(0)}</td>
+            <td>${networkBadge}</td>
+            <td>${execBadge}</td>
+            <td class="confidence">${(spread.confidence * 100).toFixed(0)}%</td>
+            <td class="age ${isStale ? 'stale' : ''}">${age}s</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Apply filters to spreads
+    function applyFilters(data) {
+      const typeFilter = document.getElementById('filterType').value;
+      const symbolFilter = document.getElementById('filterSymbol').value.toLowerCase().trim();
+      const exchangeFilter = document.getElementById('filterExchange').value;
+      const minGross = parseFloat(document.getElementById('filterMinGross').value) || -999;
+      const minProfit = parseFloat(document.getElementById('filterMinProfit').value) || -999;
+      const minDepth = parseFloat(document.getElementById('filterMinDepth').value) || 0;
+      const minConf = parseFloat(document.getElementById('filterMinConf').value) / 100 || 0;
+      const maxAge = parseFloat(document.getElementById('filterMaxAge').value) || 999;
+      const minNet = parseFloat(document.getElementById('filterMinNet').value) || -999;
+      const positiveOnly = document.getElementById('filterPositiveOnly').checked;
+      const executableOnly = document.getElementById('filterExecutableOnly').checked;
+      const nearProfitable = document.getElementById('filterNearProfitable').checked;
+
+      // Debug: log filter state
+      if (data.length > 0) {
+        console.log(`Filtering ${data.length} spreads: execOnly=${executableOnly}, posOnly=${positiveOnly}, nearProf=${nearProfitable}`);
+      }
+      
+      return data.filter(spread => {
+        // Executable only filter - skip non-executable
+        if (executableOnly && spread.executable !== true) return false;
+        // Positive only filter
+        if (positiveOnly && spread.netPercent <= 0) return false;
+        // Near profitable filter - lowered threshold to 0.01%
+        if (nearProfitable && spread.grossPercent <= 0.01) return false;
+        // Type filter
+        if (typeFilter !== 'all' && spread.type !== typeFilter) return false;
+        
+        // Symbol filter (also check pathDescription for triangular)
+        if (symbolFilter) {
+          const matchesSymbol = spread.symbol.toLowerCase().includes(symbolFilter);
+          const matchesPath = spread.pathDescription && spread.pathDescription.toLowerCase().includes(symbolFilter);
+          if (!matchesSymbol && !matchesPath) return false;
+        }
+        
+        // Exchange filter
+        if (exchangeFilter !== 'all') {
+          if (!spread.buyExchange.toLowerCase().includes(exchangeFilter) && 
+              !spread.sellExchange.toLowerCase().includes(exchangeFilter)) {
+            return false;
+          }
+        }
+        
+        // Extended filters
+        if (spread.grossPercent < minGross) return false;
+        if (spread.profitUsd < minProfit) return false;
+        if (spread.depthUsd < minDepth) return false;
+        if (spread.confidence < minConf) return false;
+        const age = spread.ageSeconds || Math.floor((Date.now() - spread.timestamp) / 1000);
+        if (age > maxAge) return false;
+        
+        // Net profit filter
+        if (spread.netPercent < minNet) return false;
+        
+        return true;
+      });
+    }
+
+    // Update connection status display
+    function updateConnectionStatus(connected) {
+      const dot = connectionStatus.querySelector('.status-dot');
+      if (connected) {
+        dot.classList.remove('disconnected');
+        dot.classList.add('connected');
+        statusText.textContent = 'Live';
+        wsStatusEl.textContent = 'WebSocket: connected';
+      } else {
+        dot.classList.remove('connected');
+        dot.classList.add('disconnected');
+        statusText.textContent = 'Reconnecting...';
+        wsStatusEl.textContent = 'WebSocket: disconnected';
+      }
+    }
+
+    // Update ages periodically
+    function updateAges() {
+      const now = Date.now();
+      spreads.forEach(spread => {
+        spread.ageSeconds = Math.floor((now - spread.timestamp) / 1000);
+      });
+      
+      // Update only age cells
+      const rows = spreadsBody.querySelectorAll('tr:not(.empty-row)');
+      const filtered = applyFilters(spreads);
+      rows.forEach((row, index) => {
+        if (index < filtered.length) {
+          const spread = filtered[index];
+          const ageCell = row.querySelector('.age');
+          if (ageCell && spread) {
+            ageCell.textContent = spread.ageSeconds + 's';
+            if (spread.ageSeconds > 60) {
+              ageCell.classList.add('stale');
+              row.classList.add('stale-row');
+            }
+          }
+        }
+      });
+    }
+
+    // HTTP polling fallback
+    async function fetchSpreads() {
+      if (isLoading) return;
+      isLoading = true;
+      
+      // Show loading indicator
+      spreadCountEl.textContent = 'Loading...';
+      
+      try {
+        const params = new URLSearchParams();
+        const minNet = document.getElementById('filterMinNet').value;
+        if (minNet) params.set('minNet', minNet);
+        
+        const response = await fetch(`/api/spreads?${params}`);
+        const data = await response.json();
+        
+        if (data.success && data.spreads) {
+          spreads = data.spreads;
+          renderSpreads();
+          lastUpdateEl.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+      } catch (error) {
+        console.error('Failed to fetch spreads:', error);
+        spreadCountEl.textContent = 'Error loading';
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    // Fetch stats
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        if (data.success && data.stats) {
+          updateStats(data.stats);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    }
+
+    // Generate test data
+    async function generateTestData() {
+      try {
+        const response = await fetch('/api/test-data', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          console.log(data.message);
+        }
+      } catch (error) {
+        console.error('Failed to generate test data:', error);
+      }
+    }
+
+    // Clear all spreads
+    async function clearAllSpreads() {
+      if (!confirm('Clear all spreads?')) return;
+      try {
+        const response = await fetch('/api/clear', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          spreads = [];
+          renderSpreads();
+          console.log('Spreads cleared');
+        }
+      } catch (error) {
+        console.error('Failed to clear spreads:', error);
+      }
+    }
+
+    // Event listeners
+    document.getElementById('applyFilters').addEventListener('click', renderSpreads);
+    document.getElementById('filterType').addEventListener('change', renderSpreads);
+
+    document.getElementById('clearFilters').addEventListener('click', () => {
+      document.getElementById('filterType').value = 'all';
+      document.getElementById('filterSymbol').value = '';
+      document.getElementById('filterExchange').value = 'all';
+      document.getElementById('filterMinGross').value = '0';
+      document.getElementById('filterMinNet').value = '-0.5';
+      document.getElementById('filterMinProfit').value = '0';
+      document.getElementById('filterMinDepth').value = '0';
+      document.getElementById('filterMinConf').value = '0';
+      document.getElementById('filterMaxAge').value = '120';
+      document.getElementById('userDeposit').value = '1000';
+      document.getElementById('filterPositiveOnly').checked = false;
+      document.getElementById('filterExecutableOnly').checked = true;
+      document.getElementById('filterNearProfitable').checked = true;
+      renderSpreads();
+    });
+    
+    // User deposit change triggers recalculation
+    document.getElementById('userDeposit').addEventListener('change', renderSpreads);
+
+    document.getElementById('filterPositiveOnly').addEventListener('change', renderSpreads);
+    document.getElementById('filterExecutableOnly').addEventListener('change', renderSpreads);
+
+    document.getElementById('generateTestData').addEventListener('click', generateTestData);
+    document.getElementById('clearAll').addEventListener('click', clearAllSpreads);
+
+    // Update interval change handler
+    document.getElementById('updateInterval').addEventListener('change', (e) => {
+      REFRESH_INTERVAL = parseInt(e.target.value) || 30000;
+      setupAutoRefresh();
+      updateLiveIndicator();
+      console.log(`Refresh interval set to ${REFRESH_INTERVAL}ms`);
+    });
+    
+    // Update live indicator text
+    function updateLiveIndicator() {
+      const seconds = REFRESH_INTERVAL / 1000;
+      const text = seconds >= 60 ? `${seconds / 60}m` : `${seconds}s`;
+      document.getElementById('liveText').textContent = `Live updates every ${text}`;
+    }
+    
+    // Auto-refresh setup
+    function setupAutoRefresh() {
+      if (refreshIntervalId) clearInterval(refreshIntervalId);
+      refreshIntervalId = setInterval(() => {
+        if (currentTab === 'cex' && !isLoading) {
+          fetchSpreads();
+          fetchStats();
+        }
+      }, REFRESH_INTERVAL);
+    }
+
+    // Enter key on filter inputs
+    document.querySelectorAll('.filters input').forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') renderSpreads();
+      });
+    });
+
+    // Tab switching - unified approach
+    const tabs = {
+      cex: { tab: document.getElementById('cexTab'), section: document.getElementById('cexTableContainer') },
+      dex: { tab: document.getElementById('dexTab'), section: document.getElementById('dexSection') },
+      wallets: { tab: document.getElementById('walletsTab'), section: document.getElementById('walletsSection') },
+      funding: { tab: document.getElementById('fundingTab'), section: document.getElementById('fundingSection') },
+      messages: { tab: document.getElementById('messagesTab'), section: document.getElementById('messagesSection') },
+      nfts: { tab: document.getElementById('nftsTab'), section: document.getElementById('nftsSection') },
+      ai: { tab: document.getElementById('aiTab'), section: document.getElementById('aiSection') }
+    };
+    
+    let currentTab = 'cex';
+    
+    function switchTab(tabName) {
+      // Hide ALL sections first
+      Object.values(tabs).forEach(t => {
+        if (t.section) t.section.style.display = 'none';
+        if (t.tab) t.tab.classList.remove('active');
+      });
+      
+      // Hide CEX-specific elements (filters, stats) when not on CEX tab
+      const cexFilters = document.getElementById('cexFilters');
+      const statsBar = document.getElementById('statsBar');
+      if (cexFilters) cexFilters.style.display = tabName === 'cex' ? 'flex' : 'none';
+      if (statsBar) statsBar.style.display = tabName === 'cex' ? 'flex' : 'none';
+      
+      // Show selected tab section
+      const selected = tabs[tabName];
+      if (selected && selected.section) {
+        selected.section.style.display = 'block';
+        if (selected.tab) selected.tab.classList.add('active');
+      }
+      currentTab = tabName;
+      
+      // Load data for specific tabs
+      if (tabName === 'funding') fetchFundingRates();
+      if (tabName === 'messages') fetchMessages();
+    }
+    
+    // Tab click handlers
+    Object.entries(tabs).forEach(([name, t]) => {
+      if (t.tab) {
+        t.tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          switchTab(name);
+        });
+      }
+    });
+
+    // ========================================
+    // Wallet Analysis
+    // ========================================
+    let walletData = null;
+    
+    async function analyzeWallet() {
+      const address = document.getElementById('walletAddress').value.trim();
+      if (!address) return alert('Enter a wallet address');
+      
+      const btn = document.getElementById('analyzeWalletBtn');
+      const analyzing = document.getElementById('walletAnalyzing');
+      btn.style.display = 'none';
+      analyzing.style.display = 'inline';
+      document.getElementById('walletStatus').textContent = 'Analyzing...';
+      
+      try {
+        const response = await fetch('/api/wallet/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address })
+        });
+        const data = await response.json();
+        
+        if (data.success && data.result) {
+          walletData = data.result;
+          renderWalletResults(data.result);
+          document.getElementById('walletStatus').textContent = 'Complete';
+        } else {
+          alert(data.error || 'Analysis failed');
+          document.getElementById('walletStatus').textContent = 'Error';
+        }
+      } catch (error) {
+        console.error('Wallet analysis error:', error);
+        alert('Failed to analyze wallet');
+        document.getElementById('walletStatus').textContent = 'Error';
+      } finally {
+        btn.style.display = 'inline-block';
+        analyzing.style.display = 'none';
+      }
+    }
+    
+    function renderWalletResults(result) {
+      // Update summary
+      document.getElementById('walletSummary').style.display = 'flex';
+      document.getElementById('walletTotalPnl').textContent = `$${result.totalPnlUsd.toFixed(2)}`;
+      document.getElementById('walletTotalPnl').className = `summary-value ${result.totalPnlUsd >= 0 ? 'positive' : 'negative'}`;
+      document.getElementById('walletWinRate').textContent = `${result.overallWinRate.toFixed(1)}%`;
+      document.getElementById('walletTotalTx').textContent = result.totalTxCount;
+      
+      // Render chains table
+      const tbody = document.getElementById('walletsBody');
+      if (!result.chains || result.chains.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><p>No activity found</p></div></td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = result.chains.map(chain => {
+        const pnlClass = chain.pnlUsd >= 0 ? 'positive' : 'negative';
+        const lastActivity = chain.lastActivity ? new Date(chain.lastActivity).toLocaleDateString() : 'N/A';
+        return `
+          <tr>
+            <td><span class="chain-badge ${chain.chain}">${chain.chain.toUpperCase()}</span></td>
+            <td>${chain.txCount}</td>
+            <td class="${pnlClass}">$${chain.pnlUsd.toFixed(2)}</td>
+            <td>${chain.winRate.toFixed(1)}%</td>
+            <td class="positive">${chain.winningTrades}</td>
+            <td class="negative">${chain.losingTrades}</td>
+            <td>$${chain.avgTradeSize.toFixed(2)}</td>
+            <td>${lastActivity}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    document.getElementById('analyzeWalletBtn').addEventListener('click', analyzeWallet);
+    document.getElementById('walletAddress').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') analyzeWallet();
+    });
+
+    // ========================================
+    // Funding Rates
+    // ========================================
+    let fundingData = { rates: [], yields: [], arbitrages: [] };
+    
+    async function fetchFundingRates() {
+      try {
+        const response = await fetch('/api/funding/rates');
+        const data = await response.json();
+        
+        if (data.success && data.snapshot) {
+          fundingData = data.snapshot;
+          renderFundingRates();
+          updateFundingSummary(data.snapshot);
+          document.getElementById('fundingStatus').textContent = 'Live';
+          document.getElementById('fundingStatus').classList.add('active');
+        }
+      } catch (error) {
+        console.error('Funding rates fetch error:', error);
+        document.getElementById('fundingStatus').textContent = 'Error';
+        document.getElementById('fundingStatus').classList.remove('active');
+      }
+    }
+    
+    function updateFundingSummary(snapshot) {
+      if (snapshot.topPositive && snapshot.topPositive[0]) {
+        document.getElementById('topPositiveSymbol').textContent = snapshot.topPositive[0].symbol;
+        document.getElementById('topPositiveRate').textContent = `${(snapshot.topPositive[0].rate * 100).toFixed(4)}%`;
+      }
+      if (snapshot.topNegative && snapshot.topNegative[0]) {
+        document.getElementById('topNegativeSymbol').textContent = snapshot.topNegative[0].symbol;
+        document.getElementById('topNegativeRate').textContent = `${(snapshot.topNegative[0].rate * 100).toFixed(4)}%`;
+      }
+      if (snapshot.arbitrages && snapshot.arbitrages[0]) {
+        document.getElementById('bestArbSymbol').textContent = snapshot.arbitrages[0].symbol;
+        document.getElementById('bestArbSpread').textContent = `${(snapshot.arbitrages[0].spreadRate * 100).toFixed(4)}%`;
+      }
+      
+      document.getElementById('fundingRateCount').textContent = `Rates: ${snapshot.rates?.length || 0}`;
+      document.getElementById('fundingArbCount').textContent = `Arbitrages: ${snapshot.arbitrages?.length || 0}`;
+      document.getElementById('fundingLastScan').textContent = `Last scan: ${new Date(snapshot.timestamp).toLocaleTimeString()}`;
+    }
+    
+    function renderFundingRates() {
+      const symbolFilter = document.getElementById('fundingSymbol').value;
+      const exchangeFilter = document.getElementById('fundingExchange').value;
+      const directionFilter = document.getElementById('fundingDirection').value;
+      
+      let filteredYields = (fundingData.yields || []).filter(y => {
+        if (symbolFilter !== 'all' && y.symbol !== symbolFilter) return false;
+        if (exchangeFilter !== 'all' && y.exchange !== exchangeFilter) return false;
+        if (directionFilter === 'positive' && y.currentRate <= 0) return false;
+        if (directionFilter === 'negative' && y.currentRate >= 0) return false;
+        return true;
+      });
+      
+      const tbody = document.getElementById('fundingBody');
+      if (filteredYields.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><p>No funding rates match filters</p></div></td></tr>';
+      } else {
+        tbody.innerHTML = filteredYields.slice(0, 50).map(y => {
+          const rateClass = y.currentRate >= 0 ? 'positive' : 'negative';
+          const direction = y.currentRate >= 0 ? 'Short pays Long' : 'Long pays Short';
+          const nextFunding = y.nextFunding ? new Date(y.nextFunding).toLocaleTimeString() : '-';
+          const riskBadge = `<span class="risk-badge ${y.riskLevel}">${y.riskLevel}</span>`;
+          
+          return `
+            <tr>
+              <td class="symbol">${y.symbol.replace('USDT', '')}</td>
+              <td>${y.exchange}</td>
+              <td class="${rateClass}">${(y.currentRate * 100).toFixed(4)}%</td>
+              <td class="${rateClass}">${y.annualizedYield.toFixed(2)}%</td>
+              <td class="${rateClass}">${y.dailyYield.toFixed(4)}%</td>
+              <td>${direction}</td>
+              <td>${nextFunding}</td>
+              <td>${riskBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+      
+      // Render arbitrage table
+      const arbTbody = document.getElementById('fundingArbBody');
+      const arbs = fundingData.arbitrages || [];
+      if (arbs.length === 0) {
+        arbTbody.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><p>No arbitrage opportunities</p></div></td></tr>';
+      } else {
+        arbTbody.innerHTML = arbs.slice(0, 20).map(a => `
+          <tr>
+            <td class="symbol">${a.symbol.replace('USDT', '')}</td>
+            <td>${a.longExchange}</td>
+            <td>${a.shortExchange}</td>
+            <td class="negative">${(a.longRate * 100).toFixed(4)}%</td>
+            <td class="positive">${(a.shortRate * 100).toFixed(4)}%</td>
+            <td class="positive bold">${(a.spreadRate * 100).toFixed(4)}%</td>
+            <td class="positive">${a.dailyProfit.toFixed(4)}%</td>
+            <td class="positive">${a.annualizedSpread.toFixed(2)}%</td>
+          </tr>
+        `).join('');
+      }
+    }
+    
+    // Funding filter handlers
+    document.getElementById('fundingSymbol').addEventListener('change', renderFundingRates);
+    document.getElementById('fundingExchange').addEventListener('change', renderFundingRates);
+    document.getElementById('fundingDirection').addEventListener('change', renderFundingRates);
+
+    // ========================================
+    // Message Monitor
+    // ========================================
+    let messagesData = [];
+    
+    async function fetchMessages() {
+      try {
+        const category = document.getElementById('msgCategory').value;
+        const priority = document.getElementById('msgPriority').value;
+        const params = new URLSearchParams();
+        if (category !== 'all') params.set('category', category);
+        if (priority !== 'all') params.set('priority', priority);
+        
+        const response = await fetch(`/api/messages/alerts?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          messagesData = data.alerts || [];
+          renderMessages();
+          updateMessageStats(data.stats);
+          document.getElementById('messagesStatus').textContent = 'Live';
+        }
+      } catch (error) {
+        console.error('Messages fetch error:', error);
+        document.getElementById('messagesStatus').textContent = 'Error';
+      }
+    }
+    
+    function updateMessageStats(stats) {
+      document.getElementById('msgTotalCount').textContent = stats.alertCount || 0;
+      document.getElementById('msgHighCount').textContent = stats.highPriorityCount || 0;
+      document.getElementById('msgChannelCount').textContent = stats.channelCount || 0;
+    }
+    
+    function renderMessages() {
+      const tbody = document.getElementById('messagesBody');
+      if (messagesData.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><div class="empty-state"><p>No alerts found</p></div></td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = messagesData.slice(0, 50).map(msg => {
+        const time = new Date(msg.timestamp).toLocaleTimeString();
+        const priorityBadge = `<span class="priority-badge ${msg.priority}">${msg.priority}</span>`;
+        const categoryBadge = `<span class="category-badge ${msg.category}">${msg.category}</span>`;
+        const sentimentBadge = `<span class="sentiment-badge ${msg.sentiment}">${msg.sentiment}</span>`;
+        const tokens = msg.tokens.slice(0, 3).map(t => `<span class="token-tag">$${t}</span>`).join(' ');
+        
+        return `
+          <tr class="${msg.priority === 'high' ? 'high-priority-row' : ''}">
+            <td>${time}</td>
+            <td>${priorityBadge}</td>
+            <td>${categoryBadge}</td>
+            <td>${msg.source}</td>
+            <td class="msg-title" title="${msg.content}">${msg.title.slice(0, 50)}${msg.title.length > 50 ? '...' : ''}</td>
+            <td>${tokens || '-'}</td>
+            <td>${sentimentBadge}</td>
+            <td><a href="${msg.url}" target="_blank" class="link-btn">View</a></td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    document.getElementById('msgCategory').addEventListener('change', fetchMessages);
+    document.getElementById('msgPriority').addEventListener('change', fetchMessages);
+
+    // ========================================
+    // AI Assistant (Real API)
+    // ========================================
+    const aiMessages = [];
+    let aiSessionId = null;
+    
+    async function sendAiMessage(query) {
+      if (!query.trim()) return;
+      
+      // Add user message to display
+      const userMsg = { role: 'user', content: query };
+      aiMessages.push(userMsg);
+      renderAiMessages();
+      
+      document.getElementById('aiInput').value = '';
+      document.getElementById('aiStatus').textContent = 'Thinking...';
+      
+      try {
+        const response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: query, sessionId: aiSessionId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          aiSessionId = data.sessionId;
+          const assistantMsg = { role: 'assistant', content: data.response };
+          aiMessages.push(assistantMsg);
+          renderAiMessages();
+          
+          // Show model info
+          const modelInfo = data.model ? ` (${data.model})` : '';
+          document.getElementById('aiStatus').textContent = `Ready${modelInfo}`;
+        } else {
+          throw new Error(data.error || 'AI request failed');
+        }
+      } catch (error) {
+        console.error('AI error:', error);
+        // Fallback to local response on error
+        const fallbackMsg = { role: 'assistant', content: `Sorry, I encountered an error. Please check that GROK_API_KEY or OPENAI_API_KEY is configured in .env. Error: ${error.message}` };
+        aiMessages.push(fallbackMsg);
+        renderAiMessages();
+        document.getElementById('aiStatus').textContent = 'Error';
+      }
+    }
+    
+    function renderAiMessages() {
+      const container = document.getElementById('aiMessages');
+      const existingWelcome = container.querySelector('.ai-message.assistant');
+      
+      let html = existingWelcome && aiMessages.length === 0 ? existingWelcome.outerHTML : '';
+      
+      for (const msg of aiMessages) {
+        const isUser = msg.role === 'user';
+        // Convert markdown-style formatting to HTML
+        let content = msg.content
+          .replace(/\n\n/g, '</p><p>')
+          .replace(/\n- /g, '</p><li>')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\|(.*?)\|/g, '<code>$1</code>');
+        
+        html += `
+          <div class="ai-message ${msg.role}">
+            <span class="ai-avatar">${isUser ? '👤' : '🤖'}</span>
+            <div class="ai-content"><p>${content}</p></div>
+          </div>
+        `;
+      }
+      
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    document.getElementById('aiSend').addEventListener('click', () => {
+      sendAiMessage(document.getElementById('aiInput').value);
+    });
+    document.getElementById('aiInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendAiMessage(document.getElementById('aiInput').value);
+    });
+    document.querySelectorAll('.suggestion-btn').forEach(btn => {
+      btn.addEventListener('click', () => sendAiMessage(btn.dataset.query));
+    });
+
+    // ========================================
+    // CSV Export
+    // ========================================
+    function exportToCSV(data, filename) {
+      if (!data.length) return alert('No data to export');
+      
+      const headers = Object.keys(data[0]);
+      const csv = [
+        headers.join(','),
+        ...data.map(row => headers.map(h => {
+          let val = row[h];
+          if (typeof val === 'string' && val.includes(',')) val = `"${val}"`;
+          return val;
+        }).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    document.getElementById('exportMessages')?.addEventListener('click', () => {
+      exportToCSV(messagesData.map(m => ({
+        time: new Date(m.timestamp).toISOString(),
+        priority: m.priority,
+        category: m.category,
+        source: m.source,
+        title: m.title,
+        tokens: m.tokens.join(';'),
+        sentiment: m.sentiment
+      })), 'messages');
+    });
+
+    // Initialize
+    connectWebSocket();
+    fetchSpreads();
+    fetchStats();
+    setInterval(updateAges, 1000);
+    setupAutoRefresh(); // Use dynamic refresh interval
+    setInterval(fetchStats, 10000);
+    
+    // Auto-refresh for active tabs
+    setInterval(() => {
+      if (currentTab === 'funding') fetchFundingRates();
+      if (currentTab === 'messages') fetchMessages();
+    }, 60000);
+  </script>
+</body>
+</html>
