@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Scanner Logs</h1>
+      <nav>
+        <a href="/">Spreads</a>
+        <a href="/stats">Stats</a>
+        <a href="/logs" class="active">Logs</a>
+      </nav>
+      <div class="log-controls">
+        <label>
+          <input type="checkbox" id="autoScroll" checked>
+          Auto-scroll
+        </label>
+        <button id="clearLogs" class="btn btn-secondary">Clear</button>
+      </div>
+    </header>
+
+    <div class="logs-container" id="logsContainer">
+      <% if (logs.length === 0) { %>
+        <div class="log-empty">No logs yet...</div>
+      <% } else { %>
+        <% logs.forEach(function(log) { %>
+          <div class="log-entry <%= log.level %>">
+            <span class="log-time"><%= new Date(log.timestamp).toLocaleTimeString() %></span>
+            <span class="log-level <%= log.level %>"><%= log.level.toUpperCase() %></span>
+            <span class="log-module"><%= log.module %></span>
+            <span class="log-message"><%= log.message %></span>
+            <% if (log.data) { %>
+              <pre class="log-data"><%= JSON.stringify(log.data, null, 2) %></pre>
+            <% } %>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+    const logsContainer = document.getElementById('logsContainer');
+    const autoScrollCheckbox = document.getElementById('autoScroll');
+    
+    // WebSocket for live logs
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      if (message.type === 'log_entry') {
+        appendLog(message.data);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      setTimeout(() => window.location.reload(), 3000);
+    };
+
+    function appendLog(log) {
+      const existing = logsContainer.querySelector('.log-empty');
+      if (existing) {
+        existing.remove();
+      }
+
+      const div = document.createElement('div');
+      div.className = `log-entry ${log.level}`;
+      
+      let html = `
+        <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+        <span class="log-level ${log.level}">${log.level.toUpperCase()}</span>
+        <span class="log-module">${log.module}</span>
+        <span class="log-message">${escapeHtml(log.message)}</span>
+      `;
+      
+      if (log.data) {
+        html += `<pre class="log-data">${escapeHtml(JSON.stringify(log.data, null, 2))}</pre>`;
+      }
+      
+      div.innerHTML = html;
+      logsContainer.appendChild(div);
+
+      // Trim old logs
+      while (logsContainer.children.length > 500) {
+        logsContainer.removeChild(logsContainer.firstChild);
+      }
+
+      // Auto-scroll
+      if (autoScrollCheckbox.checked) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('clearLogs').addEventListener('click', () => {
+      logsContainer.innerHTML = '<div class="log-empty">Logs cleared</div>';
+    });
+
+    // Initial scroll to bottom
+    logsContainer.scrollTop = logsContainer.scrollHeight;
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Scanner Statistics</h1>
+      <nav>
+        <a href="/">Spreads</a>
+        <a href="/stats" class="active">Stats</a>
+        <a href="/logs">Logs</a>
+      </nav>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Active Exchanges</h3>
+        <div class="stat-big-value" id="activeExchanges"><%= stats.activeExchangesCount %></div>
+        <div class="stat-detail">
+          <% stats.activeExchanges.forEach(function(ex) { %>
+            <span class="exchange-tag"><%= ex %></span>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Active Symbols</h3>
+        <div class="stat-big-value" id="activeSymbols"><%= stats.activeSymbols %></div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Total Calculations</h3>
+        <div class="stat-big-value" id="totalCalcs"><%= stats.totalCalculations %></div>
+      </div>
+
+      <div class="stat-card highlight">
+        <h3>Best Gross Spread</h3>
+        <div class="stat-big-value positive"><%= stats.bestGrossPercent %>%</div>
+      </div>
+
+      <div class="stat-card highlight">
+        <h3>Best Net Profit</h3>
+        <div class="stat-big-value positive"><%= stats.bestNetPercent %>%</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Opportunities (stored)</h3>
+        <div class="stat-big-value"><%= stats.opportunitiesCount %></div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Uptime</h3>
+        <div class="stat-big-value" id="uptime"><%= Math.floor(stats.uptime / 60) %>m <%= stats.uptime % 60 %>s</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>Last Update</h3>
+        <div class="stat-medium-value" id="lastUpdate"><%= stats.lastUpdate %></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-refresh stats every 5 seconds
+    async function refreshStats() {
+      try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          const stats = data.stats;
+          document.getElementById('activeExchanges').textContent = stats.activeExchangesCount;
+          document.getElementById('activeSymbols').textContent = stats.activeSymbols;
+          document.getElementById('totalCalcs').textContent = stats.totalCalculations;
+          
+          const minutes = Math.floor(stats.uptime / 60);
+          const seconds = stats.uptime % 60;
+          document.getElementById('uptime').textContent = `${minutes}m ${seconds}s`;
+          
+          document.getElementById('lastUpdate').textContent = 
+            stats.lastUpdate ? new Date(stats.lastUpdate).toLocaleTimeString() : 'N/A';
+        }
+      } catch (error) {
+        console.error('Failed to refresh stats:', error);
+      }
+    }
+
+    setInterval(refreshStats, 5000);
+  </script>
+</body>
+</html>
