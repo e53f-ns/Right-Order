@@ -310,7 +310,7 @@ export async function confirmCryptoPayment(
 // Stub upgrade (no payment — for testing)
 // ============================================================================
 
-export async function stubUpgrade(
+export async function // DISABLED: stubUpgrade — security vulnerability. Use stripe.webhooks.constructEvent()(
   userId: string,
   plan: string,
   billing: BillingPeriod,
