@@ -61,7 +61,7 @@ interface JwtPayload {
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'ro-fallback-jwt-secret-change-me';
 const ACCESS_TOKEN_EXPIRY = process.env['ACCESS_TOKEN_EXPIRY'] ?? '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = parseInt(process.env['REFRESH_TOKEN_EXPIRY_DAYS'] ?? '30', 10);
-const BCRYPT_ROUNDS = parseInt(process.env['BCRYPT_SALT_ROUNDS'] ?? '12', 10);
+const BCRYPT_ROUNDS = Math.max(10, parseInt(process.env['BCRYPT_SALT_ROUNDS'] ?? '12', 10));
 
 const DEFAULT_PREFS: UserPreferences = {
   depositSize: 1000,
