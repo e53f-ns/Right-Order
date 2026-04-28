@@ -127,6 +127,7 @@ import {
   getP2PStats,
   forceP2PScan,
 } from '../strategies/p2p-arb.js';
+import { fetchOrderbook, emptyOrderbook } from '../services/orderbook-service.js';
 
 const logger = createLogger('dashboard-server');
 
@@ -270,7 +271,7 @@ export class DashboardServer {
     });
 
     // API: Spread detail (orderbook + networks + enhanced multi-hop variants)
-    this.app.get('/api/spread/detail', (req: Request, res: Response) => {
+    this.app.get('/api/spread/detail', async (req: Request, res: Response) => {
       const { symbol, buyExchange, sellExchange } = req.query;
       if (!symbol || !buyExchange || !sellExchange) {
         res.status(400).json({ success: false, error: 'Missing symbol, buyExchange, or sellExchange' });
@@ -316,27 +317,18 @@ export class DashboardServer {
         };
       });
 
-      // ── Orderbook (simulated top-5 levels) ──
-      const basePrice = spread?.buyPrice ?? 1;
-      const asks = Array.from({ length: 5 }, (_, i) => {
-        const price = +(basePrice * (1 + (i + 1) * 0.0005)).toFixed(6);
-        const amount = +(Math.random() * 50 + 5).toFixed(4);
-        const total = +(price * amount).toFixed(2);
-        return { price, amount, total };
-      });
-      const bids = Array.from({ length: 5 }, (_, i) => {
-        const price = +(basePrice * (1 - (i + 1) * 0.0005)).toFixed(6);
-        const amount = +(Math.random() * 50 + 5).toFixed(4);
-        const total = +(price * amount).toFixed(2);
-        return { price, amount, total };
-      });
+      // ── Orderbook (real data from CCXT) ──
+      const realOb = await fetchOrderbook(buyEx, sym, 5);
+      const obData = realOb ?? emptyOrderbook();
       const orderbook = {
         buyExchange: buyEx,
         sellExchange: sellEx,
-        asks,
-        bids,
-        askDepthUsd: +asks.reduce((s, a) => s + a.total, 0).toFixed(2),
-        bidDepthUsd: +bids.reduce((s, b) => s + b.total, 0).toFixed(2),
+        asks: obData.asks,
+        bids: obData.bids,
+        askDepthUsd: +obData.asks.reduce((s, a) => s + a.total, 0).toFixed(2),
+        bidDepthUsd: +obData.bids.reduce((s, b) => s + b.total, 0).toFixed(2),
+        realtime: obData.realtime,
+        timestamp: obData.timestamp,
       };
 
       // ── Enhanced multi-hop variants ──
@@ -353,7 +345,7 @@ export class DashboardServer {
       const FAST_NETS = ['SOL', 'TRC20', 'BEP20', 'ARB', 'BASE', 'AVAX', 'POLYGON', 'TON', 'ERC20'] as const;
       const pickNetwork = (): string => {
         const enabled = FAST_NETS.filter(n => NETWORK_DB[n]?.enabled);
-        return enabled[Math.floor(Math.random() * Math.min(3, enabled.length))] ?? 'TRC20';
+        return enabled[0] ?? 'TRC20';
       };
 
       // Intermediate pairs used in multi-hop routing
@@ -443,8 +435,8 @@ export class DashboardServer {
 
         const totalFees = tradingFees + networkFees;
 
-        // Spread improvement factor for multi-hop (simulated: more hops can find better rates)
-        const spreadBonus = 1 + (hops - 1) * (Math.random() * 0.15 + 0.05);
+        // TODO: Calculate real spread from intermediate pair prices instead of flat multiplier
+        const spreadBonus = 1.0;
         const profitPercent = Math.abs(netPct) * spreadBonus;
         const profitUsd = (profitPercent / 100) * deposit - totalFees;
 
@@ -651,6 +643,11 @@ export class DashboardServer {
 
     // Generate test data (5 simple + 5 triangular)
     this.app.post('/api/test-data', (_req: Request, res: Response) => {
+      // Dev-only endpoint — disabled in production
+      if (process.env['NODE_ENV'] === 'production') {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
       const store = getDashboardStore();
       const symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'DOGE/USDT'];
       const exchanges = ['binance', 'bybit', 'okx', 'kucoin', 'gateio'];
