@@ -133,7 +133,7 @@ export function applySecurityMiddleware(app: Express): void {
   // CORS
   const origin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
   app.use(cors({
-    origin: IS_PROD ? origin : true,
+    origin: origin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],

@@ -135,9 +135,8 @@ export async function createCheckoutSession(
     if (session.url) result.url = session.url;
     return result;
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error({ userId, plan, error: msg }, 'Failed to create Stripe checkout session');
-    return { success: false, error: msg };
+    logger.error({ userId, plan, error: err instanceof Error ? err.message : String(err) }, 'Failed to create Stripe checkout session');
+    return { success: false, error: 'Payment processing failed. Please try again.' };
   }
 }
 
@@ -161,9 +160,8 @@ export async function handleStripeWebhook(
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error({ error: msg }, 'Stripe webhook signature verification failed');
-    return { success: false, error: `Webhook signature failed: ${msg}` };
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Stripe webhook signature verification failed');
+    return { success: false, error: 'Payment processing failed. Please try again.' };
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -302,42 +300,6 @@ export async function confirmCryptoPayment(
   ]);
 
   logger.info({ paymentId, txHash, userId: payment.userId, plan: payment.plan, confirmedBy: adminUserId }, 'Crypto payment confirmed, subscription upgraded');
-
-  return { success: true };
-}
-
-// ============================================================================
-// Stub upgrade (no payment — for testing)
-// ============================================================================
-
-export async function // DISABLED: stubUpgrade — security vulnerability. Use stripe.webhooks.constructEvent()(
-  userId: string,
-  plan: string,
-  billing: BillingPeriod,
-): Promise<{ success: boolean; error?: string }> {
-  const validPlans = ['free', 'pro', 'elite', 'ultimate'];
-  if (!validPlans.includes(plan)) {
-    return { success: false, error: 'Invalid plan' };
-  }
-
-  const expiresAt = plan === 'free' ? null : new Date();
-  if (expiresAt) {
-    if (billing === 'yearly') {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      subscription: plan as PrismaSubPlan,
-      subscriptionExpiresAt: expiresAt,
-    },
-  });
-
-  logger.info({ userId, plan, billing }, 'Stub subscription upgrade (no payment)');
 
   return { success: true };
 }

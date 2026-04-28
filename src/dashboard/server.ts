@@ -61,7 +61,6 @@ import {
   updatePreferences,
   getAuthStats,
   updateSubscription,
-  getUserById,
   getAllUsers,
   setUserRole,
   cleanupExpiredTokens,
@@ -85,7 +84,6 @@ import {
   handleStripeWebhook,
   createCryptoPayment,
   confirmCryptoPayment,
-  stubUpgrade,
   getPaymentHistory,
   getAllPayments,
   getPendingCryptoPayments,
@@ -1362,20 +1360,8 @@ export class DashboardServer {
     });
 
     // Stub upgrade (no payment — for testing / free-to-pro flow)
-    this.app.post('/api/subscription/upgrade', requireAuth, async (req: Request, res: Response) => {
-      const { plan, billing } = req.body as { plan?: string; billing?: 'monthly' | 'yearly' };
-      const validPlans: SubscriptionPlan[] = ['free', 'pro', 'elite', 'ultimate'];
-      if (!plan || !validPlans.includes(plan as SubscriptionPlan)) {
-        res.status(400).json({ success: false, error: 'Invalid plan' });
-        return;
-      }
-      const result = await stubUpgrade(req.user!.id, plan, billing ?? 'monthly');
-      if (!result.success) { res.status(400).json(result); return; }
-
-      const updated = await getUserById(req.user!.id);
-      const info = getPlanInfo(plan as SubscriptionPlan);
-      logger.info({ userId: req.user!.id, plan, billing }, 'Subscription upgrade (stub)');
-      res.json({ success: true, timestamp: nowMs(), message: `Upgraded to ${info.name}`, user: updated, planInfo: info });
+    this.app.post('/api/subscription/upgrade', requireAuth, async (_req: Request, res: Response) => {
+      res.status(403).json({ success: false, error: 'Direct upgrade disabled. Use Stripe checkout or crypto payment.' });
     });
 
     // ========================================
