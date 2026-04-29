@@ -1,9 +1,12 @@
 /**
  * Crypto Arbitrage Scanner with Dashboard
  * Main entry point that runs both scanner and dashboard
- * 
+ *
  * Usage: npm run dev:all
  */
+
+import { validateEnv } from './config/env.js';
+validateEnv();
 
 // ccxt types not needed in this entry point
 

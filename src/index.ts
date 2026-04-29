@@ -3,6 +3,9 @@
  * Main entry point
  */
 
+import { validateEnv } from './config/env.js';
+validateEnv();
+
 import type { Exchange } from 'ccxt';
 
 import { loadConfig } from './config/index.js';

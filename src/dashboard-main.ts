@@ -1,9 +1,12 @@
 /**
  * Dashboard Standalone Entry Point
  * Runs just the dashboard server (for development/testing)
- * 
+ *
  * Usage: npm run dev:dashboard
  */
+
+import { validateEnv } from './config/env.js';
+validateEnv();
 
 import type { ExchangeId } from './config/schema.js';
 import { getDashboardServer, getDashboardStore } from './dashboard/index.js';

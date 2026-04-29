@@ -7,11 +7,10 @@ import { createServer, type Server as HttpServer } from 'http';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
-import express, { type Express, type Request, type Response } from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 
 import { createLogger } from '../utils/logger.js';
-import { nowMs } from '../utils/time.js';
 import { getDashboardStore } from './store.js';
 import { applySecurityMiddleware } from '../auth/security.js';
 import { connectDatabase } from '../db/prisma.js';
@@ -112,6 +111,12 @@ export class DashboardServer {
     this.app.use(tradingRoutes);
     this.app.use(serviceRoutes);
     this.app.use(telegramRoutes);
+
+    // Global error handler — must be registered after all routes
+    this.app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+      logger.error({ error: err.message, stack: err.stack }, 'Unhandled route error');
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    });
   }
 
   private setupWebSocket(): void {
@@ -267,6 +272,14 @@ export class DashboardServer {
   }
 }
 
+process.on('unhandledRejection', (reason) => {
+  logger.fatal({ reason }, 'Unhandled rejection');
+});
+process.on('uncaughtException', (err: Error) => {
+  logger.fatal({ error: err.message }, 'Uncaught exception');
+  process.exit(1);
+});
+
 let serverInstance: DashboardServer | null = null;
 
 export function getDashboardServer(config?: Partial<DashboardServerConfig>): DashboardServer {
@@ -281,5 +294,3 @@ export function resetDashboardServer(): void {
   }
 }
 
-// suppress unused import warning — nowMs is re-exported for consumers
-void nowMs;
