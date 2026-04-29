@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { prisma } from '../db/prisma.js';
 import { createLogger } from '../utils/logger.js';
 import type { SubscriptionPlan as PrismaSubPlan, PaymentMethod as PrismaPaymentMethod } from '../generated/prisma/client.js';
+import { verifyTrc20Transaction, verifyErc20Transaction } from '../services/blockchain-verify.js';
 
 const logger = createLogger('payments');
 
@@ -278,6 +279,16 @@ export async function confirmCryptoPayment(
   }
   if (payment.status !== 'pending') {
     return { success: false, error: `Payment already ${payment.status}` };
+  }
+
+  const isTrc20 = payment.method === 'crypto_usdt_trc20';
+  const expectedAddress = payment.cryptoAddress ?? '';
+  const verify = isTrc20
+    ? await verifyTrc20Transaction(txHash, expectedAddress, payment.amount)
+    : await verifyErc20Transaction(txHash, expectedAddress, payment.amount);
+  if (!verify.verified) {
+    logger.warn({ paymentId, txHash, reason: verify.error }, 'On-chain verification failed');
+    return { success: false, error: `On-chain verification failed: ${verify.error}` };
   }
 
   const expiresAt = new Date();

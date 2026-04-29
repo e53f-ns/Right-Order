@@ -22,6 +22,7 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   GROK_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  ETHERSCAN_API_KEY: z.string().optional(),
 
   // Token expiry
   ACCESS_TOKEN_EXPIRY: z.string().default('15m'),
