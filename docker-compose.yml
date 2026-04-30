@@ -8,18 +8,26 @@
 # ══════════════════════════════════════════════
 
 services:
-  # ── PostgreSQL ──
+  # ── PostgreSQL (internal network only) ──
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    user: "70:70"  # postgres uid/gid in alpine image
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rightorder}
       POSTGRES_USER: ${POSTGRES_USER:-rightorder}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # No `ports:` mapping — postgres is only reachable via the internal
+    # backend-net network. Use `docker compose exec postgres ...` for admin.
+    networks:
+      - backend-net
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rightorder} -d ${POSTGRES_DB:-rightorder}"]
       interval: 10s
@@ -60,10 +68,19 @@ services:
       CRYPTO_USDT_ERC20_ADDRESS: ${CRYPTO_USDT_ERC20_ADDRESS:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    # Bind to loopback only — backend is fronted by nginx (frontend service).
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    networks:
+      - backend-net
+      - frontend-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,7 +97,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Frontend (Nginx + Vite build) ──
+  # ── Frontend (Nginx + Vite build) — public entrypoint ──
   frontend:
     build:
       context: ./frontend
@@ -90,7 +107,17 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_PORT:-3100}:80"
+    networks:
+      - frontend-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    # nginx writes to cache/run/log dirs — tmpfs lets us keep the FS read-only.
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
       interval: 30s
@@ -101,6 +128,15 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  # Internal network — backend <-> postgres only, not reachable from host.
+  backend-net:
+    driver: bridge
+    internal: true
+  # Frontend <-> backend reverse-proxy network.
+  frontend-net:
+    driver: bridge
 
 volumes:
   pgdata:
