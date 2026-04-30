@@ -12,7 +12,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 
 import { createLogger } from '../utils/logger.js';
 import { getDashboardStore } from './store.js';
-import { applySecurityMiddleware } from '../auth/security.js';
+import { applySecurityMiddleware, requireAuth } from '../auth/security.js';
 import { connectDatabase } from '../db/prisma.js';
 
 import spreadRoutes from '../routes/spreads.js';
@@ -102,6 +102,32 @@ export class DashboardServer {
         refreshInterval: 5000,
       });
     });
+
+    // Auth gate for protected API namespaces. Runs before routers so unauthenticated
+    // requests get 401 from requireAuth without ever reaching route handlers.
+    // Public surface (no requireAuth): /, /health, /api/auth/*, /api/payment/*,
+    // /api/admin/* (has its own requireAdmin), static files, /api/telegram webhooks.
+    const protectedPrefixes = [
+      '/api/spreads',
+      '/api/spread',
+      '/api/stats',
+      '/api/logs',
+      '/api/clear',
+      '/api/test-data',
+      '/api/funding',
+      '/api/stat-arb',
+      '/api/pairs',
+      '/api/p2p',
+      '/api/futures',
+      '/api/nfts',
+      '/api/messages',
+      '/api/ai',
+      '/api/wallet',
+      '/api/dex',
+    ];
+    for (const prefix of protectedPrefixes) {
+      this.app.use(prefix, requireAuth);
+    }
 
     this.app.use(spreadRoutes);
     this.app.use(authRoutes);
