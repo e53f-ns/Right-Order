@@ -17,7 +17,29 @@ function createPrismaClient(): PrismaClient {
   if (!url) {
     logger.warn('DATABASE_URL not set — Prisma client will fail on queries');
   }
-  const pool = new pg.Pool({ connectionString: url });
+
+  // pg.Pool ignores Prisma-style ?connection_limit=. Parse it out so the
+  // pool actually bounds connections in production.
+  let max = 15;
+  let connectionTimeoutMillis = 10_000;
+  if (url) {
+    try {
+      const params = new URL(url).searchParams;
+      const cl = Number(params.get('connection_limit'));
+      if (Number.isFinite(cl) && cl > 0) max = cl;
+      const ct = Number(params.get('connect_timeout'));
+      if (Number.isFinite(ct) && ct > 0) connectionTimeoutMillis = ct * 1000;
+    } catch {
+      // fall through to defaults
+    }
+  }
+
+  const pool = new pg.Pool({
+    connectionString: url,
+    max,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
