@@ -13,12 +13,19 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     user: "70:70"  # postgres uid/gid in alpine image
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rightorder}
       POSTGRES_USER: ${POSTGRES_USER:-rightorder}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     # No `ports:` mapping — postgres is only reachable via the internal
     # backend-net network. Use `docker compose exec postgres ...` for admin.
     networks:
@@ -33,11 +40,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 1G
+        reservations:
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -57,7 +66,7 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-rightorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rightorder}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rightorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rightorder}?schema=public&connection_limit=15&pool_timeout=20&connect_timeout=10
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
