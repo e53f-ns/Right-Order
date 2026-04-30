@@ -17,12 +17,15 @@ const envSchema = z.object({
   // Optional (features disabled if missing)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   CRYPTO_USDT_TRC20_ADDRESS: z.string().optional(),
   CRYPTO_USDT_ERC20_ADDRESS: z.string().optional(),
+  CRYPTO_USDT_TON_ADDRESS: z.string().optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   GROK_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ETHERSCAN_API_KEY: z.string().optional(),
+  TONCENTER_API_KEY: z.string().optional(),
 
   // Token expiry
   ACCESS_TOKEN_EXPIRY: z.string().default('15m'),

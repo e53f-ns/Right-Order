@@ -55,8 +55,9 @@ router.post('/api/payment/webhook', async (req: Request, res: Response) => {
 });
 
 router.post('/api/payment/crypto', requireAuth, async (req: Request, res: Response) => {
-  const { plan, billing, network } = req.body as { plan?: string; billing?: 'monthly' | 'yearly'; network?: 'trc20' | 'erc20' };
+  const { plan, billing, network } = req.body as { plan?: string; billing?: 'monthly' | 'yearly'; network?: 'trc20' | 'erc20' | 'ton' };
   if (!plan || !billing || !network) { res.status(400).json({ success: false, error: 'plan, billing, network required' }); return; }
+  if (!['trc20', 'erc20', 'ton'].includes(network)) { res.status(400).json({ success: false, error: 'invalid network' }); return; }
   const result = await createCryptoPayment(req.user!.id, plan, billing, network);
   res.json({ ...result, timestamp: nowMs() });
 });

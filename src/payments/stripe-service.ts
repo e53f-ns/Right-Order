@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { prisma } from '../db/prisma.js';
 import { createLogger } from '../utils/logger.js';
 import type { SubscriptionPlan as PrismaSubPlan, PaymentMethod as PrismaPaymentMethod } from '../generated/prisma/client.js';
-import { verifyTrc20Transaction, verifyErc20Transaction } from '../services/blockchain-verify.js';
+import { verifyTrc20Transaction, verifyErc20Transaction, verifyTonTransaction } from '../services/blockchain-verify.js';
 
 const logger = createLogger('payments');
 
@@ -165,12 +165,70 @@ export async function handleStripeWebhook(
     return { success: false, error: 'Payment processing failed. Please try again.' };
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await processSuccessfulPayment(session);
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        await processSuccessfulPayment(event.data.object as Stripe.Checkout.Session);
+        break;
+      }
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        await processSubscriptionChange(event.data.object as Stripe.Subscription, event.type);
+        break;
+      }
+      case 'invoice.payment_failed': {
+        await processInvoiceFailure(event.data.object as Stripe.Invoice);
+        break;
+      }
+      default:
+        logger.debug({ type: event.type }, 'Unhandled Stripe event');
+    }
+  } catch (err: unknown) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), type: event.type }, 'Error handling Stripe event');
   }
 
   return { success: true };
+}
+
+async function processSubscriptionChange(sub: Stripe.Subscription, eventType: string): Promise<void> {
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
+  if (!user) {
+    logger.warn({ customerId, eventType }, 'Subscription event for unknown customer');
+    return;
+  }
+
+  if (eventType === 'customer.subscription.deleted' || sub.status === 'canceled' || sub.status === 'unpaid') {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { subscription: 'free' as PrismaSubPlan, subscriptionExpiresAt: new Date() },
+    });
+    logger.info({ userId: user.id, status: sub.status }, 'Subscription downgraded to free');
+    return;
+  }
+
+  // current_period_end is unix seconds
+  const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end;
+  if (periodEnd) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { subscriptionExpiresAt: new Date(periodEnd * 1000) },
+    });
+    logger.info({ userId: user.id, periodEnd }, 'Subscription expiry updated from Stripe');
+  }
+}
+
+async function processInvoiceFailure(invoice: Stripe.Invoice): Promise<void> {
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  if (!customerId) return;
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
+  if (!user) return;
+  logger.warn({ userId: user.id, invoiceId: invoice.id }, 'Stripe invoice payment failed');
+  // Mark any matching pending payments as failed (best-effort by customer).
+  await prisma.payment.updateMany({
+    where: { userId: user.id, status: 'pending', method: 'stripe' as PrismaPaymentMethod },
+    data: { status: 'failed' },
+  });
 }
 
 async function processSuccessfulPayment(session: Stripe.Checkout.Session): Promise<void> {
@@ -217,19 +275,36 @@ async function processSuccessfulPayment(session: Stripe.Checkout.Session): Promi
 // Crypto payment (stub — manual confirmation)
 // ============================================================================
 
+export type CryptoNetwork = 'trc20' | 'erc20' | 'ton';
+
+const CRYPTO_NETWORK_ENV: Record<CryptoNetwork, string> = {
+  trc20: 'CRYPTO_USDT_TRC20_ADDRESS',
+  erc20: 'CRYPTO_USDT_ERC20_ADDRESS',
+  ton:   'CRYPTO_USDT_TON_ADDRESS',
+};
+
+const CRYPTO_NETWORK_METHOD: Record<CryptoNetwork, PrismaPaymentMethod> = {
+  trc20: 'crypto_usdt_trc20',
+  erc20: 'crypto_usdt_erc20',
+  ton:   'crypto_usdt_ton' as PrismaPaymentMethod,
+};
+
 export async function createCryptoPayment(
   userId: string,
   plan: string,
   billing: BillingPeriod,
-  network: 'trc20' | 'erc20',
+  network: CryptoNetwork,
 ): Promise<CryptoPaymentResult> {
   const prices = PLAN_PRICES[plan];
   if (!prices) {
     return { success: false, error: `Invalid plan: ${plan}` };
   }
 
+  const envKey = CRYPTO_NETWORK_ENV[network];
+  if (!envKey) {
+    return { success: false, error: `Unsupported network: ${network}` };
+  }
   const amount = prices[billing];
-  const envKey = network === 'trc20' ? 'CRYPTO_USDT_TRC20_ADDRESS' : 'CRYPTO_USDT_ERC20_ADDRESS';
   const address = process.env[envKey];
 
   if (!address) {
@@ -239,7 +314,7 @@ export async function createCryptoPayment(
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 2); // 2 hour window
 
-  const method: PrismaPaymentMethod = network === 'trc20' ? 'crypto_usdt_trc20' : 'crypto_usdt_erc20';
+  const method: PrismaPaymentMethod = CRYPTO_NETWORK_METHOD[network];
 
   const payment = await prisma.payment.create({
     data: {
@@ -280,12 +355,26 @@ export async function confirmCryptoPayment(
   if (payment.status !== 'pending') {
     return { success: false, error: `Payment already ${payment.status}` };
   }
+  if (payment.expiresAt && payment.expiresAt.getTime() < Date.now()) {
+    await prisma.payment.update({ where: { id: paymentId }, data: { status: 'expired' } });
+    return { success: false, error: 'Payment expired. Please create a new payment.' };
+  }
 
-  const isTrc20 = payment.method === 'crypto_usdt_trc20';
   const expectedAddress = payment.cryptoAddress ?? '';
-  const verify = isTrc20
-    ? await verifyTrc20Transaction(txHash, expectedAddress, payment.amount)
-    : await verifyErc20Transaction(txHash, expectedAddress, payment.amount);
+  let verify;
+  switch (payment.method) {
+    case 'crypto_usdt_trc20':
+      verify = await verifyTrc20Transaction(txHash, expectedAddress, payment.amount);
+      break;
+    case 'crypto_usdt_erc20':
+      verify = await verifyErc20Transaction(txHash, expectedAddress, payment.amount);
+      break;
+    case 'crypto_usdt_ton' as PrismaPaymentMethod:
+      verify = await verifyTonTransaction(txHash, expectedAddress, payment.amount);
+      break;
+    default:
+      return { success: false, error: `Unsupported payment method: ${payment.method}` };
+  }
   if (!verify.verified) {
     logger.warn({ paymentId, txHash, reason: verify.error }, 'On-chain verification failed');
     return { success: false, error: `On-chain verification failed: ${verify.error}` };
@@ -425,7 +514,7 @@ export async function getPendingCryptoPayments(): Promise<Array<{
   expiresAt: number | null;
 }>> {
   const payments = await prisma.payment.findMany({
-    where: { status: 'pending', method: { in: ['crypto_usdt_trc20', 'crypto_usdt_erc20'] } },
+    where: { status: 'pending', method: { in: ['crypto_usdt_trc20', 'crypto_usdt_erc20', 'crypto_usdt_ton' as PrismaPaymentMethod] } },
     orderBy: { createdAt: 'desc' },
     include: { user: { select: { email: true } } },
   });
@@ -441,6 +530,25 @@ export async function getPendingCryptoPayments(): Promise<Array<{
     createdAt: p.createdAt.getTime(),
     expiresAt: p.expiresAt?.getTime() ?? null,
   }));
+}
+
+// ============================================================================
+// Expire pending crypto payments past their window
+// ============================================================================
+
+export async function expireStaleCryptoPayments(): Promise<number> {
+  const result = await prisma.payment.updateMany({
+    where: {
+      status: 'pending',
+      method: { in: ['crypto_usdt_trc20', 'crypto_usdt_erc20', 'crypto_usdt_ton' as PrismaPaymentMethod] },
+      expiresAt: { lt: new Date() },
+    },
+    data: { status: 'expired' },
+  });
+  if (result.count > 0) {
+    logger.info({ count: result.count }, 'Expired stale crypto payments');
+  }
+  return result.count;
 }
 
 logger.info('Payment service initialized');

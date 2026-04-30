@@ -36,6 +36,7 @@ enum PaymentMethod {
   stripe
   crypto_usdt_trc20
   crypto_usdt_erc20
+  crypto_usdt_ton
   binance_pay
   manual
 }

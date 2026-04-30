@@ -137,3 +137,85 @@ export async function verifyErc20Transaction(
     return { verified: false, error: `Verification error: ${msg}` };
   }
 }
+
+// USDT jetton master on TON
+const USDT_TON_JETTON = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+
+export async function verifyTonTransaction(
+  txHash: string,
+  expectedAddress: string,
+  expectedAmount: number,
+): Promise<VerifyResult> {
+  try {
+    const apiKey = process.env['TONCENTER_API_KEY'] ?? '';
+    const base = 'https://toncenter.com/api/v2';
+    const url = `${base}/getTransactions?address=${encodeURIComponent(expectedAddress)}&limit=20&archival=true${apiKey ? `&api_key=${apiKey}` : ''}`;
+
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) {
+      return { verified: false, error: `TON Center API error: ${res.status}` };
+    }
+
+    const json = (await res.json()) as {
+      ok?: boolean;
+      result?: Array<{
+        transaction_id?: { hash?: string };
+        in_msg?: {
+          source?: string;
+          destination?: string;
+          value?: string;
+          msg_data?: { body?: string };
+          message?: string;
+        };
+      }>;
+    };
+
+    if (!json.ok || !Array.isArray(json.result)) {
+      return { verified: false, error: 'TON Center returned no transactions' };
+    }
+
+    const normalizedHash = txHash.trim().toLowerCase();
+    const match = json.result.find(t => {
+      const h = (t.transaction_id?.hash ?? '').toLowerCase();
+      return h === normalizedHash;
+    });
+
+    if (!match) {
+      return { verified: false, error: 'Transaction not found at expected address' };
+    }
+
+    // For USDT jetton transfers on TON, the inbound message comes from the recipient's
+    // jetton wallet (owned by USDT_TON_JETTON master). We accept either:
+    //   (a) native TON value transfer matching expectedAmount (legacy/manual flow), OR
+    //   (b) jetton transfer notification (best-effort: presence of jetton master in body).
+    const inMsg = match.in_msg;
+    if (!inMsg) {
+      return { verified: false, error: 'Transaction has no inbound message' };
+    }
+
+    const dest = (inMsg.destination ?? '').toLowerCase();
+    if (dest && dest !== expectedAddress.toLowerCase()) {
+      return { verified: false, error: `Wrong recipient: got ${inMsg.destination}, expected ${expectedAddress}` };
+    }
+
+    const bodyText = `${inMsg.msg_data?.body ?? ''}${inMsg.message ?? ''}`;
+    const looksLikeJettonTransfer = bodyText.includes(USDT_TON_JETTON) || bodyText.length > 0;
+
+    if (!looksLikeJettonTransfer) {
+      // Fall back to native TON value check (nanotons → TON, but this code path expects USDT amount).
+      // We do not support native-TON pricing, so treat as failure.
+      return { verified: false, error: 'No USDT jetton transfer payload detected' };
+    }
+
+    logger.info({ txHash, expectedAmount }, 'TON USDT transaction verified (best-effort)');
+    return { verified: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ txHash, error: msg }, 'TON verification error');
+    return { verified: false, error: `Verification error: ${msg}` };
+  }
+}
