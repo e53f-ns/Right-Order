@@ -33,6 +33,13 @@ export type Env = z.infer<typeof envSchema>;
 
 let _env: Env | null = null;
 
+const PAYMENT_VARS = [
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'CRYPTO_USDT_TRC20_ADDRESS',
+  'CRYPTO_USDT_ERC20_ADDRESS',
+] as const;
+
 export function validateEnv(): Env {
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
@@ -42,6 +49,22 @@ export function validateEnv(): Env {
     process.exit(1);
   }
   _env = result.data;
+
+  if (_env.NODE_ENV === 'production') {
+    const missing = PAYMENT_VARS.filter(k => {
+      const v = _env![k];
+      return !v || v === 'sk_test_PLACEHOLDER' || v === 'whsec_PLACEHOLDER';
+    });
+    if (missing.length > 0) {
+      logger.warn({ missing }, 'Production mode: payment env vars missing — payment processing will be disabled for those methods');
+      console.warn(`\nWARNING: production mode but missing payment vars: ${missing.join(', ')}\n`);
+    }
+    if (_env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
+      logger.warn('Production mode but STRIPE_SECRET_KEY is a test key (sk_test_*) — real payments will NOT process');
+      console.warn('\nWARNING: NODE_ENV=production but STRIPE_SECRET_KEY is a test key.\n');
+    }
+  }
+
   logger.info({ nodeEnv: _env.NODE_ENV, port: _env.PORT }, 'Environment validated');
   return _env;
 }

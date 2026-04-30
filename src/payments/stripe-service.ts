@@ -165,12 +165,70 @@ export async function handleStripeWebhook(
     return { success: false, error: 'Payment processing failed. Please try again.' };
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await processSuccessfulPayment(session);
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await processSuccessfulPayment(event.data.object as Stripe.Checkout.Session);
+        break;
+      case 'customer.subscription.updated':
+        await processSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+      case 'customer.subscription.deleted':
+        await processSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        break;
+      case 'invoice.payment_failed':
+        await processInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+      default:
+        logger.debug({ type: event.type }, 'Unhandled Stripe webhook event');
+    }
+  } catch (err: unknown) {
+    logger.error({ type: event.type, error: err instanceof Error ? err.message : String(err) }, 'Stripe webhook handler error');
+    return { success: false, error: 'Webhook processing failed' };
   }
 
   return { success: true };
+}
+
+async function processSubscriptionUpdated(sub: Stripe.Subscription): Promise<void> {
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
+  if (!user) {
+    logger.warn({ customerId, subscriptionId: sub.id }, 'subscription.updated for unknown customer');
+    return;
+  }
+  const status = sub.status;
+  if (status === 'canceled' || status === 'unpaid' || status === 'incomplete_expired') {
+    await prisma.user.update({ where: { id: user.id }, data: { subscription: 'free', subscriptionExpiresAt: null } });
+    logger.info({ userId: user.id, subscriptionId: sub.id, status }, 'Subscription downgraded to free via webhook');
+  } else {
+    logger.info({ userId: user.id, subscriptionId: sub.id, status }, 'Subscription updated via webhook');
+  }
+}
+
+async function processSubscriptionDeleted(sub: Stripe.Subscription): Promise<void> {
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true } });
+  if (!user) {
+    logger.warn({ customerId, subscriptionId: sub.id }, 'subscription.deleted for unknown customer');
+    return;
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { subscription: 'free', subscriptionExpiresAt: null } });
+  logger.info({ userId: user.id, subscriptionId: sub.id }, 'Subscription deleted, user downgraded to free');
+}
+
+async function processInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  if (!customerId) {
+    logger.warn({ invoiceId: invoice.id }, 'invoice.payment_failed without customer');
+    return;
+  }
+  const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true, email: true } });
+  if (!user) {
+    logger.warn({ customerId, invoiceId: invoice.id }, 'invoice.payment_failed for unknown customer');
+    return;
+  }
+  logger.warn({ userId: user.id, email: user.email, invoiceId: invoice.id, amountDue: invoice.amount_due }, 'Invoice payment failed');
 }
 
 async function processSuccessfulPayment(session: Stripe.Checkout.Session): Promise<void> {
@@ -279,6 +337,11 @@ export async function confirmCryptoPayment(
   }
   if (payment.status !== 'pending') {
     return { success: false, error: `Payment already ${payment.status}` };
+  }
+  if (payment.expiresAt && payment.expiresAt.getTime() < Date.now()) {
+    await prisma.payment.update({ where: { id: paymentId }, data: { status: 'expired' } });
+    logger.warn({ paymentId, expiresAt: payment.expiresAt }, 'Crypto payment expired before confirmation');
+    return { success: false, error: 'Payment window expired. Please create a new payment.' };
   }
 
   const isTrc20 = payment.method === 'crypto_usdt_trc20';
