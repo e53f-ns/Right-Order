@@ -701,37 +701,10 @@ function pushToDashboard(opp: DexOpportunity): void {
  * Generate mock pools for testing
  */
 function generateMockPools(): PoolInfo[] {
-  const pools: PoolInfo[] = [];
-  
-  for (const dex of DEX_CONFIGS.filter(d => d.enabled)) {
-    const tokens = COMMON_TOKENS[dex.chain] || [];
-    
-    for (let i = 0; i < Math.min(tokens.length - 1, 3); i++) {
-      const token0 = tokens[i];
-      if (!token0) continue;
-      const token1 = tokens.find(t => t.symbol === 'USDC' || t.symbol === 'USDT') || tokens[tokens.length - 1];
-      if (!token1 || token0.symbol === token1.symbol) continue;
-
-      const liquidityUsd = Math.random() * 990000 + 10000;
-      const price = token0.priceUsd;
-
-      pools.push({
-        address: `0x${Math.random().toString(16).slice(2, 42)}`,
-        dex: dex.id,
-        chain: dex.chain,
-        token0,
-        token1,
-        reserve0: liquidityUsd / 2 / price,
-        reserve1: liquidityUsd / 2,
-        liquidityUsd,
-        fee: dex.feePercent,
-        createdAt: Date.now() - Math.random() * 86400000 * 30,
-        lastUpdate: Date.now(),
-      });
-    }
-  }
-  
-  return pools;
+  // Synthetic pool data removed — without real on-chain RPC / aggregator
+  // access the scanner returns an empty pool list and the UI shows
+  // "Coming soon / configure API keys".
+  return [];
 }
 
 // ============================================================================

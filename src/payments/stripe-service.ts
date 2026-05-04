@@ -45,6 +45,14 @@ const PLAN_PRICES: Record<string, Record<BillingPeriod, number>> = {
   ultimate: { monthly: 199, yearly: 1799 },
 };
 
+// Stripe Price IDs (created in Stripe Dashboard → Products).
+// One recurring Price per plan/billing combo. Required for subscription mode.
+const STRIPE_PRICE_ENV: Record<string, Record<BillingPeriod, string>> = {
+  pro:      { monthly: 'STRIPE_PRICE_PRO_MONTHLY',      yearly: 'STRIPE_PRICE_PRO_YEARLY' },
+  elite:    { monthly: 'STRIPE_PRICE_ELITE_MONTHLY',    yearly: 'STRIPE_PRICE_ELITE_YEARLY' },
+  ultimate: { monthly: 'STRIPE_PRICE_ULTIMATE_MONTHLY', yearly: 'STRIPE_PRICE_ULTIMATE_YEARLY' },
+};
+
 // ============================================================================
 // Stripe client (lazy init — only if key is configured)
 // ============================================================================
@@ -86,7 +94,13 @@ export async function createCheckoutSession(
   }
 
   const amount = prices[billing];
-  const description = `Right Order ${plan.charAt(0).toUpperCase() + plan.slice(1)} — ${billing}`;
+
+  const priceEnvKey = STRIPE_PRICE_ENV[plan]?.[billing];
+  const priceId = priceEnvKey ? process.env[priceEnvKey] : undefined;
+  if (!priceId) {
+    logger.error({ plan, billing, envKey: priceEnvKey }, 'Stripe Price ID not configured for plan/billing');
+    return { success: false, error: 'Subscription pricing not configured. Please contact support.' };
+  }
 
   try {
     // Ensure Stripe customer exists
@@ -101,16 +115,12 @@ export async function createCheckoutSession(
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'payment',
+      mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: description },
-          unit_amount: Math.round(amount * 100),
-        },
-        quantity: 1,
-      }],
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        metadata: { userId, plan, billing },
+      },
       metadata: { userId, plan, billing },
       success_url: successUrl,
       cancel_url: cancelUrl,

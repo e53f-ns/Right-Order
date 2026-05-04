@@ -321,7 +321,12 @@ export function PricingPage() {
                 <div className="text-[10px] text-muted-foreground space-y-1 bg-amber-500/5 border border-amber-500/10 rounded-xl p-3">
                   <p className="font-semibold text-amber-400">Important:</p>
                   <p>Send the exact amount shown above. Your plan will be activated within 24 hours after payment confirmation.</p>
-                  <p>Contact support if you need immediate activation.</p>
+                  <p>
+                    <a href="mailto:support@rightorder.io?subject=Crypto%20payment%20activation" className="underline hover:text-amber-300">
+                      Contact support
+                    </a>{' '}
+                    if you need immediate activation.
+                  </p>
                 </div>
 
                 <button

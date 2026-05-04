@@ -493,14 +493,20 @@ export function Landing() {
 
       {/* ════════ FOOTER ════════ */}
       <footer className="border-t border-white/[0.04] py-10 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-base font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Right Order</div>
-          <div className="flex items-center gap-8 text-xs text-muted-foreground">
-            <button onClick={() => navigate('/pricing')} className="hover:text-foreground transition-colors">Pricing</button>
-            <button onClick={() => navigate('/login')} className="hover:text-foreground transition-colors">Login</button>
-            <button onClick={() => navigate('/dashboard')} className="hover:text-foreground transition-colors">Dashboard</button>
+        <div className="max-w-6xl mx-auto flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-base font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Right Order</div>
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+              <button onClick={() => navigate('/pricing')} className="hover:text-foreground transition-colors">Pricing</button>
+              <button onClick={() => navigate('/login')} className="hover:text-foreground transition-colors">Login</button>
+              <button onClick={() => navigate('/dashboard')} className="hover:text-foreground transition-colors">Dashboard</button>
+              <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">Terms</button>
+              <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">Privacy</button>
+              <button onClick={() => navigate('/risk')} className="hover:text-foreground transition-colors">Risk Disclaimer</button>
+              <a href="mailto:support@rightorder.io" className="hover:text-foreground transition-colors">support@rightorder.io</a>
+            </div>
           </div>
-          <div className="text-xs text-muted-foreground/50">&copy; 2026 Right Order. All rights reserved.</div>
+          <div className="text-center text-xs text-muted-foreground/50">&copy; 2026 Right Order. All rights reserved.</div>
         </div>
       </footer>
     </div>

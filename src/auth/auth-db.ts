@@ -58,8 +58,13 @@ interface JwtPayload {
 // Configuration
 // ============================================================================
 
-const JWT_SECRET = process.env['JWT_SECRET'] ??
-  (() => { throw new Error('FATAL: JWT_SECRET env var is required'); })();
+const JWT_ACCESS_SECRET = process.env['JWT_ACCESS_SECRET'] ??
+  (() => { throw new Error('FATAL: JWT_ACCESS_SECRET env var is required'); })();
+// Refresh tokens are random bytes stored as DB rows, but the secret is held to
+// allow future signed-refresh-token migration without an env break.
+const _JWT_REFRESH_SECRET = process.env['JWT_REFRESH_SECRET'] ??
+  (() => { throw new Error('FATAL: JWT_REFRESH_SECRET env var is required'); })();
+void _JWT_REFRESH_SECRET;
 const ACCESS_TOKEN_EXPIRY = process.env['ACCESS_TOKEN_EXPIRY'] ?? '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = parseInt(process.env['REFRESH_TOKEN_EXPIRY_DAYS'] ?? '30', 10);
 const BCRYPT_ROUNDS = Math.max(10, parseInt(process.env['BCRYPT_SALT_ROUNDS'] ?? '12', 10));
@@ -78,12 +83,12 @@ const DEFAULT_PREFS: UserPreferences = {
 function signAccessToken(userId: string, email: string, role: string): string {
   const payload: JwtPayload = { userId, email, role };
   const expiry = ACCESS_TOKEN_EXPIRY;
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: expiry as unknown as number });
+  return jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: expiry as unknown as number });
 }
 
 function verifyAccessToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+    return jwt.verify(token, JWT_ACCESS_SECRET) as JwtPayload;
   } catch {
     return null;
   }

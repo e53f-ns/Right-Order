@@ -65,9 +65,6 @@ const DEFAULT_CONFIG: StatArbConfig = {
   maxHoldingPeriodMs: 3600000,
 };
 
-// Well-known cross-exchange pairs for seeding
-const SEED_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'DOGE/USDT'];
-const SEED_EXCHANGES = ['binance', 'bybit', 'okx', 'kucoin', 'gateio'];
 
 // ============================================================================
 // State
@@ -264,67 +261,13 @@ export function startStatArb(config?: Partial<StatArbConfig>): void {
 }
 
 /**
- * Seed the engine with synthetic spread data so signals appear immediately.
- * Generates realistic mean-reverting spreads with occasional deviations (z > 2).
+ * Previously seeded the engine with synthetic mean-reverting spread data so
+ * signals appeared immediately. Disabled — production must accumulate real
+ * exchange data via bootstrapFromPrices() / live updates. The UI shows
+ * "Coming soon" until real data has been collected.
  */
 export function seedHistoricalData(): void {
-  const now = Date.now();
-  const interval = 30_000; // 30s candles
-  let seededPairs = 0;
-  let seededSignals = 0;
-
-  for (const symbol of SEED_SYMBOLS) {
-    for (let i = 0; i < SEED_EXCHANGES.length; i++) {
-      for (let j = i + 1; j < SEED_EXCHANGES.length; j++) {
-        const exA = SEED_EXCHANGES[i]!;
-        const exB = SEED_EXCHANGES[j]!;
-        const key = spreadKey(symbol, exA, exB);
-        if (state.histories.has(key)) continue; // Already has real data
-
-        const sorted = [exA, exB].sort();
-        const spreads: number[] = [];
-        const timestamps: number[] = [];
-
-        // Generate mean-reverting spread with drift
-        const baseMean = (Math.random() - 0.5) * 0.002; // Small mean offset
-        const baseVol = 0.001 + Math.random() * 0.003;  // Volatility
-        let val = baseMean;
-
-        for (let k = 0; k < state.config.windowSize; k++) {
-          // Ornstein-Uhlenbeck process: mean-reverting
-          const reversion = 0.1 * (baseMean - val);
-          const noise = (Math.random() - 0.5) * 2 * baseVol;
-          val += reversion + noise;
-
-          // Inject anomaly near the end (last 3 samples) for some pairs
-          if (k >= state.config.windowSize - 3 && seededPairs % 3 === 0) {
-            val = baseMean + (Math.random() > 0.5 ? 1 : -1) * baseVol * (2.5 + Math.random());
-          }
-
-          spreads.push(val);
-          timestamps.push(now - (state.config.windowSize - k) * interval);
-        }
-
-        state.histories.set(key, {
-          exchangeA: sorted[0] ?? exA,
-          exchangeB: sorted[1] ?? exB,
-          symbol,
-          spreads,
-          timestamps,
-        });
-        seededPairs++;
-      }
-    }
-  }
-
-  // Immediately compute signals from seeded data
-  const signals = computeSignals();
-  seededSignals = signals.length;
-
-  logger.info(
-    { seededPairs, seededSignals, totalPairs: state.histories.size, strong: signals.filter(s => s.strength === 'strong').length },
-    `Stat arb: seeded ${seededPairs} pairs, generated ${seededSignals} signals`
-  );
+  logger.info('Stat arb seeding disabled — waiting for real exchange data');
 }
 
 /**

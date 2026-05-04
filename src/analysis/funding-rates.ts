@@ -325,28 +325,9 @@ async function fetchBitgetFunding(): Promise<FundingRate[]> {
  * Generate mock funding rates for testing
  */
 function generateMockRates(): FundingRate[] {
-  const exchanges: FundingExchange[] = ['binance', 'bybit', 'okx', 'bitget', 'gateio', 'kucoin'];
-  const rates: FundingRate[] = [];
-  const now = Date.now();
-
-  for (const symbol of TOP_SYMBOLS.slice(0, 10)) {
-    for (const exchange of exchanges) {
-      const baseRate = (Math.random() - 0.5) * 0.002;
-      rates.push({
-        exchange,
-        symbol,
-        rate: baseRate,
-        nextFundingTime: now + Math.random() * 8 * 3600000,
-        predictedRate: baseRate * (0.8 + Math.random() * 0.4),
-        markPrice: 50000 + Math.random() * 50000,
-        indexPrice: 50000 + Math.random() * 50000,
-        openInterest: Math.random() * 1000000000,
-        volume24h: Math.random() * 5000000000,
-      });
-    }
-  }
-
-  return rates;
+  // Synthetic funding rates removed — return empty so the UI shows
+  // "Coming soon / data unavailable" instead of fake numbers.
+  return [];
 }
 
 // ============================================================================

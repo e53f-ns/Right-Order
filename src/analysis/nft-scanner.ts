@@ -68,11 +68,6 @@ const TOP_COLLECTIONS: Record<NFTChain, string[]> = {
   solana: ['okay_bears', 'degods', 'y00ts', 'famous_fox_federation'],
 };
 
-const NATIVE_PRICES: Record<string, number> = {
-  ETH: 3200,
-  MATIC: 0.5,
-  SOL: 150,
-};
 
 // ============================================================================
 // State
@@ -178,42 +173,12 @@ async function fetchMoralisNFTs(collection: string, chain: NFTChain): Promise<NF
 /**
  * Generate mock NFT opportunities for demo
  */
-function generateMockOpportunities(chain: NFTChain): NFTListing[] {
-  const collections = TOP_COLLECTIONS[chain] || [];
-  const nativeToken = chain === 'ethereum' ? 'ETH' : chain === 'polygon' ? 'MATIC' : 'SOL';
-  const nativePrice = NATIVE_PRICES[nativeToken] || 1;
-  
-  const opportunities: NFTListing[] = [];
-  
-  for (const slug of collections.slice(0, 5)) {
-    const floorPrice = Math.random() * 10 + 0.5;
-    const discount = Math.random() * 0.3 + 0.05; // 5-35% below floor
-    const listingPrice = floorPrice * (1 - discount);
-    const rarityRank = Math.floor(Math.random() * 5000) + 1;
-    
-    opportunities.push({
-      id: `${slug}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      collection: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      collectionSlug: slug,
-      chain,
-      tokenId: String(Math.floor(Math.random() * 10000)),
-      name: `${slug.replace(/-/g, ' ')} #${Math.floor(Math.random() * 10000)}`,
-      imageUrl: '',
-      listingPrice,
-      listingPriceUsd: listingPrice * nativePrice,
-      floorPrice,
-      floorPriceUsd: floorPrice * nativePrice,
-      rarityRank,
-      rarityScore: 100 - (rarityRank / 100),
-      profitPercent: discount * 100,
-      profitUsd: (floorPrice - listingPrice) * nativePrice,
-      marketplace: Math.random() > 0.5 ? 'OpenSea' : 'Blur',
-      listingUrl: `https://opensea.io/assets/${chain}/${slug}`,
-      listedAt: Date.now() - Math.random() * 3600000,
-    });
-  }
-  
-  return opportunities.sort((a, b) => b.profitPercent - a.profitPercent);
+function generateMockOpportunities(_chain: NFTChain): NFTListing[] {
+  // Synthetic NFT data has been removed. Real listings require a Moralis API
+  // key (or equivalent). When no key is configured the scanner returns an
+  // empty result so the UI can render a "Coming soon" state instead of fake
+  // opportunities.
+  return [];
 }
 
 // ============================================================================

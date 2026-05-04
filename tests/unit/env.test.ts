@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { validateEnv } from '../../src/config/env.js';
 
 const ENV_KEYS = [
-  'DATABASE_URL', 'JWT_SECRET', 'NODE_ENV', 'PORT', 'FRONTEND_PORT',
-  'CORS_ORIGIN', 'ACCESS_TOKEN_EXPIRY', 'REFRESH_TOKEN_EXPIRY',
+  'DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'NODE_ENV',
+  'PORT', 'FRONTEND_PORT', 'CORS_ORIGIN', 'ACCESS_TOKEN_EXPIRY', 'REFRESH_TOKEN_EXPIRY',
 ];
+
+const VALID_SECRET = 'test-secret-minimum-16-chars';
 
 describe('validateEnv', () => {
   const savedEnv: Record<string, string | undefined> = {};
@@ -29,43 +31,57 @@ describe('validateEnv', () => {
   });
 
   it('exits with code 1 when DATABASE_URL is missing', () => {
-    process.env['JWT_SECRET'] = 'test-secret-minimum-16-chars';
+    process.env['JWT_ACCESS_SECRET'] = VALID_SECRET;
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     expect(() => validateEnv()).toThrow('PROCESS_EXIT');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  it('exits with code 1 when JWT_SECRET is missing', () => {
+  it('exits with code 1 when JWT_ACCESS_SECRET is missing', () => {
     process.env['DATABASE_URL'] = 'postgresql://localhost/test';
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     expect(() => validateEnv()).toThrow('PROCESS_EXIT');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  it('exits with code 1 when JWT_SECRET is shorter than 16 chars', () => {
+  it('exits with code 1 when JWT_REFRESH_SECRET is missing', () => {
     process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-    process.env['JWT_SECRET'] = 'tooshort';
+    process.env['JWT_ACCESS_SECRET'] = VALID_SECRET;
+    expect(() => validateEnv()).toThrow('PROCESS_EXIT');
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('exits with code 1 when JWT_ACCESS_SECRET is shorter than 16 chars', () => {
+    process.env['DATABASE_URL'] = 'postgresql://localhost/test';
+    process.env['JWT_ACCESS_SECRET'] = 'tooshort';
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     expect(() => validateEnv()).toThrow('PROCESS_EXIT');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it('returns NODE_ENV default of "development" when not set', () => {
     process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-    process.env['JWT_SECRET'] = 'test-secret-minimum-16-chars';
+    process.env['JWT_ACCESS_SECRET'] = VALID_SECRET;
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     const env = validateEnv();
     expect(env.NODE_ENV).toBe('development');
   });
 
   it('returns PORT default of 3000 when not set', () => {
     process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-    process.env['JWT_SECRET'] = 'test-secret-minimum-16-chars';
+    process.env['JWT_ACCESS_SECRET'] = VALID_SECRET;
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     const env = validateEnv();
     expect(env.PORT).toBe(3000);
   });
 
   it('returns parsed env when all required vars are set', () => {
     process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-    process.env['JWT_SECRET'] = 'test-secret-minimum-16-chars';
+    process.env['JWT_ACCESS_SECRET'] = VALID_SECRET;
+    process.env['JWT_REFRESH_SECRET'] = VALID_SECRET;
     const env = validateEnv();
     expect(env.DATABASE_URL).toBe('postgresql://localhost/test');
-    expect(env.JWT_SECRET).toBe('test-secret-minimum-16-chars');
+    expect(env.JWT_ACCESS_SECRET).toBe(VALID_SECRET);
+    expect(env.JWT_REFRESH_SECRET).toBe(VALID_SECRET);
   });
 });

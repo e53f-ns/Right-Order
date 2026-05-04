@@ -23,6 +23,10 @@ import { P2PArbTab } from '@/components/tabs/P2PArbTab';
 import { PlanGate } from '@/components/guards/PlanGate';
 import { AdminPanel } from '@/components/AdminPanel';
 import { DashboardHome } from '@/components/DashboardHome';
+import { CookieBanner } from '@/components/CookieBanner';
+import { TermsPage } from '@/components/legal/TermsPage';
+import { PrivacyPage } from '@/components/legal/PrivacyPage';
+import { RiskPage } from '@/components/legal/RiskPage';
 import {
   BarChart3, Hexagon, Wallet, TrendingUp, MessageSquare, ImageIcon, Bot,
   Activity, GitBranch, Banknote, LineChart, Users, Menu, X,
@@ -143,14 +147,20 @@ const TABS: { id: TabId; label: string; icon: ReactNode; section?: string; requi
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<SectionBoundary name="Landing"><Landing /></SectionBoundary>} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/dashboard" element={<AuthGuard><DashboardPage /></AuthGuard>} />
-      <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/admin" element={<AuthGuard><AdminPanel /></AuthGuard>} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<SectionBoundary name="Landing"><Landing /></SectionBoundary>} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<AuthGuard><DashboardPage /></AuthGuard>} />
+        <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/admin" element={<AuthGuard><AdminPanel /></AuthGuard>} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/risk" element={<RiskPage />} />
+      </Routes>
+      <CookieBanner />
+    </>
   );
 }
 

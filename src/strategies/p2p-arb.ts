@@ -106,16 +106,12 @@ function getSimulatedP2PPrice(platform: string, fiat: string, baseUsdPrice: numb
   const rate = fiatRates[fiat] ?? 1;
   const fiatPrice = baseUsdPrice * rate;
 
-  // Each platform has slight price variations (simulated spread)
-  const platformOffsets: Record<string, number> = {
-    'binance_p2p': 1.0 + (Math.random() * 0.04 - 0.015),
-    'bybit_p2p': 1.0 + (Math.random() * 0.05 - 0.02),
-    'okx_p2p': 1.0 + (Math.random() * 0.045 - 0.018),
-    'huobi_p2p': 1.0 + (Math.random() * 0.06 - 0.025),
-  };
-  const offset = platformOffsets[platform] ?? 1.0;
-
-  return +(fiatPrice * offset).toFixed(2);
+  // Without a real P2P data feed we return the fiat-converted CEX spot price
+  // verbatim. The 2/3/4-hop variants below short-circuit when there is no
+  // real spread data, so the UI shows "Coming soon" rather than synthetic
+  // arbitrage opportunities.
+  void platform;
+  return +fiatPrice.toFixed(2);
 }
 
 function getCexSpotPrice(symbol: string): number {
@@ -159,73 +155,12 @@ function findMultiHopPaths(_symbol: string, fiat: string, p2pPlatform: string): 
     }
   }
 
-  // 2-hop: P2P → CEX1 → CEX2 (with transfer)
-  for (let i = 0; i < CEX_PLATFORMS.length; i++) {
-    for (let j = i + 1; j < CEX_PLATFORMS.length; j++) {
-      const cex1 = CEX_PLATFORMS[i]!;
-      const cex2 = CEX_PLATFORMS[j]!;
-      const baseSpread = (Math.random() * 3 - 0.5);
-      if (baseSpread > 0.3) {
-        const fees = depositSize * 0.004 + (NETWORK_FEES['TRC20'] ?? 1);
-        const netProfit = (baseSpread / 100) * depositSize - fees;
-        variants.push({
-          hops: 2,
-          path: [p2pPlatform, cex1, cex2],
-          profitPercent: +baseSpread.toFixed(3),
-          profitUsd: +netProfit.toFixed(2),
-          fees: +fees.toFixed(2),
-          transferTime: TRANSFER_TIMES['TRC20'] ?? '2-5 min',
-        });
-      }
-    }
-  }
+  // Multi-hop (2/3/4) variants previously used random spreads as a stand-in
+  // for real cross-platform price data. Removed pending a real P2P feed —
+  // only the 1-hop spreads above (computed from real CEX spot + fiat rate)
+  // are surfaced. The UI shows "Coming soon" when this list is empty.
+  void depositSize;
 
-  // 3-hop: P2P → CEX1 → CEX2 → CEX3
-  const cexArr = [...CEX_PLATFORMS];
-  for (let i = 0; i < Math.min(cexArr.length, 4); i++) {
-    for (let j = i + 1; j < Math.min(cexArr.length, 5); j++) {
-      for (let k = j + 1; k < Math.min(cexArr.length, 6); k++) {
-        const baseSpread = (Math.random() * 4 - 1);
-        if (baseSpread > 0.8) {
-          const fees = depositSize * 0.006 + 2 * (NETWORK_FEES['TRC20'] ?? 1);
-          const netProfit = (baseSpread / 100) * depositSize - fees;
-          variants.push({
-            hops: 3,
-            path: [p2pPlatform, cexArr[i]!, cexArr[j]!, cexArr[k]!],
-            profitPercent: +baseSpread.toFixed(3),
-            profitUsd: +netProfit.toFixed(2),
-            fees: +fees.toFixed(2),
-            transferTime: '5-15 min',
-          });
-        }
-      }
-    }
-  }
-
-  // 4-hop: P2P → CEX1 → CEX2 → CEX3 → CEX4
-  for (let i = 0; i < Math.min(cexArr.length, 3); i++) {
-    for (let j = i + 1; j < Math.min(cexArr.length, 4); j++) {
-      for (let k = j + 1; k < Math.min(cexArr.length, 5); k++) {
-        for (let l = k + 1; l < Math.min(cexArr.length, 6); l++) {
-          const baseSpread = (Math.random() * 5 - 1.5);
-          if (baseSpread > 1.5) {
-            const fees = depositSize * 0.008 + 3 * (NETWORK_FEES['TRC20'] ?? 1);
-            const netProfit = (baseSpread / 100) * depositSize - fees;
-            variants.push({
-              hops: 4,
-              path: [p2pPlatform, cexArr[i]!, cexArr[j]!, cexArr[k]!, cexArr[l]!],
-              profitPercent: +baseSpread.toFixed(3),
-              profitUsd: +netProfit.toFixed(2),
-              fees: +fees.toFixed(2),
-              transferTime: '10-25 min',
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // Sort by profit desc, keep top 10
   return variants.sort((a, b) => b.profitPercent - a.profitPercent).slice(0, 10);
 }
 

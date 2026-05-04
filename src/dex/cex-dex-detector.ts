@@ -244,7 +244,13 @@ function calculateOpportunity(
     slippagePercent: slippagePercent.toNumber(),
     
     liquidityUsd: pool.reserveUsd,
-    priceImpact: 0, // TODO: Calculate from trade size
+    // Constant-product (x*y=k) approximation: dx swapped against reserve R
+    // moves price by ~ dx / (R + dx). Expressed as a percentage of pool TVL
+    // halves (single-side reserve ≈ reserveUsd / 2). Returns null when we
+    // can't estimate (zero/negative reserves).
+    priceImpact: pool.reserveUsd > 0
+      ? +((tradeSizeUsd / (pool.reserveUsd / 2 + tradeSizeUsd)) * 100).toFixed(4)
+      : 0,
     
     confidence: isExecutable ? 0.8 : 0.5,
     executable: isExecutable,

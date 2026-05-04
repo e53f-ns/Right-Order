@@ -407,26 +407,20 @@ async function analyzeChain(address: string, chain: WalletChain): Promise<Wallet
  * Generate mock wallet stats for testing
  */
 function generateMockStats(address: string, chain: WalletChain): WalletStats {
-  const txCount = Math.floor(Math.random() * 500) + 10;
-  const winningTrades = Math.floor(Math.random() * txCount * 0.6);
-  const losingTrades = txCount - winningTrades;
-  const pnlUsd = (Math.random() - 0.3) * 10000;
-
+  // No synthetic stats. When upstream APIs are unavailable we return an empty
+  // placeholder so the UI can render a "Coming soon / connect API key" state.
   return {
     chain,
     address,
-    txCount,
-    pnlUsd,
-    winRate: txCount > 0 ? (winningTrades / txCount) * 100 : 0,
-    totalTrades: txCount,
-    winningTrades,
-    losingTrades,
-    avgTradeSize: Math.random() * 1000 + 100,
-    lastActivity: Date.now() - Math.random() * 86400000 * 30,
-    topTokens: [
-      { symbol: 'ETH', balance: Math.random() * 10, valueUsd: Math.random() * 30000, pnl: Math.random() * 1000 - 500 },
-      { symbol: 'USDT', balance: Math.random() * 10000, valueUsd: Math.random() * 10000, pnl: 0 },
-    ],
+    txCount: 0,
+    pnlUsd: 0,
+    winRate: 0,
+    totalTrades: 0,
+    winningTrades: 0,
+    losingTrades: 0,
+    avgTradeSize: 0,
+    lastActivity: 0,
+    topTokens: [],
   };
 }
 

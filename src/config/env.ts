@@ -6,7 +6,8 @@ const logger = createLogger('env');
 const envSchema = z.object({
   // Required
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars'),
+  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars'),
 
   // Optional with defaults
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -18,6 +19,12 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_PRICE_PRO_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_PRO_YEARLY: z.string().optional(),
+  STRIPE_PRICE_ELITE_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_ELITE_YEARLY: z.string().optional(),
+  STRIPE_PRICE_ULTIMATE_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_ULTIMATE_YEARLY: z.string().optional(),
   CRYPTO_USDT_TRC20_ADDRESS: z.string().optional(),
   CRYPTO_USDT_ERC20_ADDRESS: z.string().optional(),
   CRYPTO_USDT_TON_ADDRESS: z.string().optional(),

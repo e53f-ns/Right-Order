@@ -76,9 +76,6 @@ const MIN_SAMPLES = 8;
 const Z_SCORE_ENTRY = 2.0;
 const SIGNAL_MAX_AGE_MS = 3600000;
 
-// Exchanges used for seeding
-const SEED_EXCHANGES = ['binance', 'bybit', 'okx', 'kucoin', 'gateio'];
-
 const state: PairsState = {
   isRunning: false,
   histories: new Map(),
@@ -349,77 +346,9 @@ export function startPairsTrading(): void {
  * with realistic correlation and occasional z-score deviations.
  */
 export function seedPairsData(): void {
-  const now = Date.now();
-  const interval = 30_000; // 30s candles
-  let seededPairs = 0;
-  let seededSignals = 0;
-
-  // Approximate base prices for seed generation
-  const basePrices: Record<string, number> = {
-    'BTC/USDT': 95000, 'ETH/USDT': 2800, 'SOL/USDT': 170,
-    'XRP/USDT': 2.5, 'DOGE/USDT': 0.25, 'ADA/USDT': 0.75,
-    'DOT/USDT': 7, 'LINK/USDT': 18, 'AVAX/USDT': 38,
-    'MATIC/USDT': 0.4, 'SHIB/USDT': 0.000025,
-  };
-
-  for (const exchange of SEED_EXCHANGES) {
-    for (const [symbolA, symbolB] of PAIR_CANDIDATES) {
-      const key = pairKey(symbolA, symbolB, exchange);
-      if (state.histories.has(key)) continue;
-
-      const baseA = basePrices[symbolA] ?? 100;
-      const baseB = basePrices[symbolB] ?? 100;
-      const baseRatio = baseA / baseB;
-      const vol = 0.005 + Math.random() * 0.01; // Ratio volatility
-
-      const pricesA: number[] = [];
-      const pricesB: number[] = [];
-      const ratios: number[] = [];
-      const timestamps: number[] = [];
-
-      let ratioVal = baseRatio;
-      // Generate correlated trending prices (random walk with drift)
-      let priceTrend = baseA;
-
-      for (let k = 0; k < WINDOW_SIZE; k++) {
-        // Price A follows a random walk (small drift + noise)
-        priceTrend *= 1 + (Math.random() - 0.498) * 0.005;
-
-        // Mean-reverting ratio (Ornstein-Uhlenbeck)
-        const reversion = 0.15 * (baseRatio - ratioVal);
-        const noise = (Math.random() - 0.5) * 2 * vol * baseRatio;
-        ratioVal += reversion + noise;
-
-        // Inject anomaly near end for ~50% of pairs
-        if (k >= WINDOW_SIZE - 3 && seededPairs % 2 === 0) {
-          ratioVal = baseRatio + (Math.random() > 0.5 ? 1 : -1) * vol * baseRatio * (2.8 + Math.random());
-        }
-
-        const pA = priceTrend;
-        const pB = pA / ratioVal;
-
-        pricesA.push(pA);
-        pricesB.push(pB);
-        ratios.push(ratioVal);
-        timestamps.push(now - (WINDOW_SIZE - k) * interval);
-      }
-
-      state.histories.set(key, {
-        symbolA, symbolB, exchange, pricesA, pricesB, ratios, timestamps,
-      });
-      seededPairs++;
-    }
-  }
-
-  // Immediately analyze to produce candidates + signals
-  const signals = analyzePairs();
-  seededSignals = signals.length;
-  const cointegrated = Array.from(state.candidates.values()).filter(c => c.isCointegrated).length;
-
-  logger.info(
-    { seededPairs, cointegrated, seededSignals, totalPairs: state.histories.size, strong: signals.filter(s => s.strength === 'strong').length },
-    `Pairs trading: seeded ${seededPairs} pairs, ${cointegrated} cointegrated, ${seededSignals} signals`
-  );
+  // Synthetic seeding disabled — pairs trading must accumulate real data via
+  // feedPairPrices(). UI shows "Coming soon" until enough history exists.
+  logger.info('Pairs trading seeding disabled — waiting for real exchange data');
 }
 
 /**
