@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Copy, Bell, Loader2, AlertTriangle, ArrowRight, Check } from 'lucide-react';
+import { X, Copy, Bell, Loader2, AlertTriangle, Check } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
